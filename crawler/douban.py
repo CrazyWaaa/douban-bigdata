@@ -97,7 +97,13 @@ class DoubanCrawler:
         self._sleep()
         return movie
 
-    def run(self, enrich_top_n: int = 50, out_name: str = "movies.jsonl") -> int:
+    def run(
+        self,
+        enrich_top_n: int = 250,
+        out_name: str = "movies.jsonl",
+        enrich_all: bool = False,
+    ) -> int:
+        """爬取 Top250 列表，并对前 enrich_top_n 条（或全部）调用详情页 enrich。"""
         out_path = os.path.join(self.cfg.output_dir, out_name)
         seen: set[str] = set()
         total = 0
@@ -106,7 +112,8 @@ class DoubanCrawler:
                 if movie.douban_id in seen:
                     continue
                 seen.add(movie.douban_id)
-                if total < enrich_top_n and total >= 0:
+                # 默认对全部电影做详情页 enrich（字段完整度优先）
+                if enrich_all or total < enrich_top_n:
                     self.enrich(movie)
                 fout.write(json.dumps(to_dict(movie), ensure_ascii=False) + "\n")
                 fout.flush()
@@ -121,14 +128,9 @@ class DoubanCrawler:
         out_path = os.path.join(self.cfg.output_dir, out_name)
         rewritten = 0
         for douban_id in ids:
-            movie = Movie(
-                douban_id=douban_id, title="", director="", actors="",
-                year=None, country="", genre="", rating=None,
-                rating_count=None, summary="", poster_url="",
-            )
+            movie = Movie(douban_id=douban_id, title="")
             self.enrich(movie)
-            # 只有当 summary 真正拿到才覆盖；否则保留原 movie 中的 title 等
-            if movie.summary:
+            if movie.summary or movie.runtime or movie.languages:
                 with open(out_path, "a", encoding="utf-8") as f:
                     f.write(json.dumps(to_dict(movie), ensure_ascii=False) + "\n")
                 rewritten += 1

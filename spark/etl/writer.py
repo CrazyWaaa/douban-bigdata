@@ -32,8 +32,13 @@ def write_movie(movies: DataFrame) -> None:
     select_cols = [
         "douban_id", "title", "director", "actors", "genre", "country",
         "year", "rating", "rating_count", "summary", "poster_url",
+        "detail_url", "languages", "release_date", "runtime", "runtime_minutes",
+        "quote", "better_than", "also_know_as", "imdb_id", "official_sites",
+        "comment_short_count", "comment_review_count", "discussion_count",
+        "rating_stars", "related_pics",
     ]
-    _write(movies.select(*select_cols), "movie")
+    existing = [c for c in select_cols if c in movies.columns]
+    _write(movies.select(*existing), "movie")
 
 
 def write_aggregates(

@@ -93,7 +93,7 @@ def top_rated(limit: int = 50) -> list[dict]:
 
 
 def _serialize_movie(m: Movie, rank: int | None = None) -> dict:
-    return {
+    data = {
         "rank": rank,
         "douban_id": m.douban_id,
         "title": m.title,
@@ -107,6 +107,28 @@ def _serialize_movie(m: Movie, rank: int | None = None) -> dict:
         "summary": m.summary,
         "poster_url": m.poster_url,
     }
+    # 扩展字段：只在有值时返回（避免列表接口被大量空字段稀释）
+    extras = {
+        "detail_url": getattr(m, "detail_url", None),
+        "languages": getattr(m, "languages", None),
+        "release_date": getattr(m, "release_date", None),
+        "runtime": getattr(m, "runtime", None),
+        "runtime_minutes": int(m.runtime_minutes) if getattr(m, "runtime_minutes", None) is not None else None,
+        "quote": getattr(m, "quote", None),
+        "better_than": getattr(m, "better_than", None),
+        "also_know_as": getattr(m, "also_know_as", None),
+        "imdb_id": getattr(m, "imdb_id", None),
+        "official_sites": getattr(m, "official_sites", None),
+        "comment_short_count": int(m.comment_short_count) if getattr(m, "comment_short_count", None) is not None else None,
+        "comment_review_count": int(m.comment_review_count) if getattr(m, "comment_review_count", None) is not None else None,
+        "discussion_count": int(m.discussion_count) if getattr(m, "discussion_count", None) is not None else None,
+        "rating_stars": getattr(m, "rating_stars", None),
+        "related_pics": getattr(m, "related_pics", None),
+    }
+    for k, v in extras.items():
+        if v not in (None, "", "null", "[]", "{}"):
+            data[k] = v
+    return data
 
 
 def detail(douban_id: str) -> dict | None:
