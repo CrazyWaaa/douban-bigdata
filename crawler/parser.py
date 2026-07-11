@@ -81,6 +81,43 @@ def _split_year_country_genre(second_line: str) -> tuple[int | None, str, str]:
     return year_val, country, genre
 
 
+def parse_explore_card(el, default_genre='', default_country=''):
+    """从豆瓣 explore 标签页的电影卡片抽取最小字段。"""
+    href = ''
+    if hasattr(el, 'get'):
+        href = (el.get('href') or '').strip()
+        if not href:
+            a = el.select_one("a[href*='/subject/']")
+            if a:
+                href = (a.get('href') or '').strip()
+    import re as _re
+    m = _re.search(r'/subject/(\d+)/', href)
+    if not m:
+        return None
+    douban_id = m.group(1)
+    title = ''
+    title_el = el.select_one('.title, h3, .name')
+    if title_el:
+        title = _normalize_spaces(title_el.get_text())
+    if not title:
+        img = el.select_one('img[alt]')
+        if img:
+            title = (img.get('alt') or '').strip()
+    rating = None
+    rating_el = el.select_one('.rating_num, .rating .rating_num, .rating')
+    if rating_el:
+        try:
+            rating = float((rating_el.get_text() or '').strip())
+        except ValueError:
+            rating = None
+    poster_url = ''
+    img = el.select_one('img')
+    if img:
+        poster_url = (img.get('src') or img.get('data-src') or '').strip()
+    return Movie(douban_id=douban_id, title=title, rating=rating,
+                 poster_url=poster_url, genre=default_genre, country=default_country)
+
+
 def parse_top250_item(li) -> Movie | None:
     """从 Top250 列表页一个 <li class="item"> 抽取基础字段。"""
     try:

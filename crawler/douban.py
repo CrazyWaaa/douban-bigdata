@@ -9,12 +9,13 @@ import os
 import random
 import time
 from typing import Iterable
+from urllib.parse import quote
 
 import requests
 from bs4 import BeautifulSoup
 
 from .config import CONFIG, CrawlerConfig
-from .parser import Movie, parse_top250_item, parse_subject_page, to_dict
+from .parser import Movie, parse_top250_item, parse_explore_card, parse_subject_page, to_dict
 from .proxy import ProxyPool
 from .ua import common_headers, pick_user_agent, reset_user_agent
 
@@ -124,6 +125,61 @@ class DoubanCrawler:
             LOGGER.info("Top250 page=%s movies=%s", page, count)
             self._sleep()
 
+
+    def crawl_by_genre(self) -> Iterable[Movie]:
+        """按 config.genres 中定义的标签，从豆瓣 explore 页抓取电影卡片。
+        每个标签最多翻 max_pages_per_tag 页，每页请求间隔 6~15s。
+        """
+        for genre in self.cfg.genres:
+            count = 0
+            for page in range(self.cfg.max_pages_per_tag):
+                # tag 的 URL 形态：movie.douban.com/explore?genres=剧情&page=N
+                url = f"{self.cfg.genre_base}?genres={quote(genre)}&page={page}"
+                referer = self.cfg.genre_base if page == 0 else f"{self.cfg.genre_base}?genres={quote(genre)}&page={page - 1}"
+                html = self._fetch(url, referer=referer)
+                if not html:
+                    LOGGER.warning("genre=%s page=%s fetch failed", genre, page)
+                    break
+                soup = BeautifulSoup(html, "lxml")
+                items = soup.select("a.item.subject-item, div.subject-item, li.subject-item")
+                if not items:
+                    break
+                for el in items:
+                    movie = parse_explore_card(el, default_genre=genre)
+                    if movie is None:
+                        continue
+                    yield movie
+                    count += 1
+                LOGGER.info("genre=%s page=%s movies=%s", genre, page, count)
+                self._sleep()
+            if count == 0:
+                LOGGER.warning("genre=%s yielded 0 movies; check selector or rate limit", genre)
+
+    def crawl_by_country(self) -> Iterable[Movie]:
+        """按 config.countries 中定义的地区，从豆瓣 explore 页抓取电影卡片。"""
+        for country in self.cfg.countries:
+            count = 0
+            for page in range(self.cfg.max_pages_per_tag):
+                url = f"{self.cfg.genre_base}?countries={quote(country)}&page={page}"
+                referer = self.cfg.genre_base if page == 0 else f"{self.cfg.genre_base}?countries={quote(country)}&page={page - 1}"
+                html = self._fetch(url, referer=referer)
+                if not html:
+                    LOGGER.warning("country=%s page=%s fetch failed", country, page)
+                    break
+                soup = BeautifulSoup(html, "lxml")
+                items = soup.select("a.item.subject-item, div.subject-item, li.subject-item")
+                if not items:
+                    break
+                for el in items:
+                    movie = parse_explore_card(el, default_country=country)
+                    if movie is None:
+                        continue
+                    yield movie
+                    count += 1
+                LOGGER.info("country=%s page=%s movies=%s", country, page, count)
+                self._sleep()
+            if count == 0:
+                LOGGER.warning("country=%s yielded 0 movies; check selector or rate limit", country)
     def enrich(self, movie: Movie) -> Movie:
         url = f"{self.cfg.movie_detail_base}{movie.douban_id}/"
         html = self._fetch(url, referer=self.cfg.top250_url)
@@ -140,22 +196,39 @@ class DoubanCrawler:
         enrich_top_n: int = 250,
         out_name: str = "movies.jsonl",
         enrich_all: bool = False,
+        sources: list[str] | None = None,
     ) -> int:
+        """sources: 子集 ['top250','genres','countries']；None 等价于只 Top250（向后兼容）。"""
+        if sources is None:
+            sources = ["top250"]
         out_path = os.path.join(self.cfg.output_dir, out_name)
         seen: set[str] = set()
         total = 0
+
+        # 按 sources 顺序串行抓取（避免并发触发 429）
+        iterables = []
+        if "top250" in sources:
+            iterables.append(self.crawl_top250())
+        if "genres" in sources:
+            iterables.append(self.crawl_by_genre())
+        if "countries" in sources:
+            iterables.append(self.crawl_by_country())
+
         with open(out_path, "w", encoding="utf-8") as fout:
-            for movie in self.crawl_top250():
-                if movie.douban_id in seen:
-                    continue
-                seen.add(movie.douban_id)
-                if enrich_all or total < enrich_top_n:
-                    self.enrich(movie)
-                fout.write(json.dumps(to_dict(movie), ensure_ascii=False) + "\n")
-                fout.flush()
-                total += 1
-                if total >= self.cfg.target_count:
-                    break
+            for it in iterables:
+                for movie in it:
+                    if movie.douban_id in seen:
+                        continue
+                    seen.add(movie.douban_id)
+                    if enrich_all or total < enrich_top_n:
+                        self.enrich(movie)
+                    fout.write(json.dumps(to_dict(movie), ensure_ascii=False) + "\n")
+                    fout.flush()
+                    total += 1
+                    if total >= self.cfg.target_count:
+                        LOGGER.info("hit target_count=%s, stop early", self.cfg.target_count)
+                        LOGGER.info("wrote %s records to %s", total, out_path)
+                        return total
         LOGGER.info("wrote %s records to %s", total, out_path)
         return total
 
