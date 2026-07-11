@@ -1,17 +1,30 @@
-"""Flask 后端入口：注册蓝图、提供统一 JSON 响应。"""
+"""Flask 后端入口：注册蓝图、CORS、错误处理。"""
+from __future__ import annotations
+
 from flask import Flask, jsonify
 from flask_cors import CORS
+
+from .routes.dashboard import bp as dashboard_bp
+from .routes.health import bp as health_bp
+from .routes.movies import bp as movies_bp
 
 
 def create_app() -> Flask:
     app = Flask(__name__)
-    CORS(app)
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-    @app.get("/api/health")
-    def health():
-        return jsonify(status="ok")
+    app.register_blueprint(health_bp)
+    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(movies_bp)
 
-    print("[backend] 占位实现：待注册业务接口")
+    @app.errorhandler(404)
+    def not_found(e):
+        return jsonify(error="not_found", message=str(e.description)), 404
+
+    @app.errorhandler(500)
+    def server_error(e):
+        return jsonify(error="server_error", message=str(e)), 500
+
     return app
 
 
