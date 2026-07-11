@@ -109,7 +109,8 @@ class DoubanCrawler:
     def crawl_top250(self) -> Iterable[Movie]:
         for page in range(self.cfg.top250_pages):
             url = f"{self.cfg.top250_url}?start={page * 25}&filter="
-            # 第一页没 referer，后面一页的 referer 就是上一页            referer = f"{self.cfg.top250_url}?start={(page - 1) * 25}&filter=" if page > 0 else self.cfg.top250_url
+            # 第一页没 referer，后面一页的 referer 就是上一页
+            referer = f"{self.cfg.top250_url}?start={(page - 1) * 25}&filter=" if page > 0 else self.cfg.top250_url
             html = self._fetch(url, referer=referer)
             if not html:
                 LOGGER.warning("Top250 page=%s fetch failed", page)
