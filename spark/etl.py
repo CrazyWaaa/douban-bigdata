@@ -8,7 +8,7 @@ from datetime import datetime
 
 from pyspark.sql import SparkSession
 
-from spark.etl.aggregator import agg_country, agg_genre, agg_year
+from spark.etl.aggregator import agg_country, agg_genre, agg_year, dim_genre, dim_country, dim_year
 from spark.etl.reader import read_raw
 from spark.etl.settings import SETTINGS
 from spark.etl.transformer import filter_valid, transform
@@ -50,18 +50,24 @@ def run(input_override: str | None = None, only_aggregates: bool = False, skip_w
     agg_g = agg_genre(cleaned)
     agg_c = agg_country(cleaned)
     agg_y = agg_year(cleaned)
+    dim_g = dim_genre(cleaned)
+    dim_c = dim_country(cleaned)
+    dim_y = dim_year()
 
     if skip_writes:
         logging.info("skip writes by flag; showing aggregate previews instead")
         agg_g.show(20, False)
         agg_c.show(20, False)
         agg_y.show(20, False)
+        dim_g.show(10, False)
+        dim_c.show(10, False)
+        dim_y.show(10, False)
         return
 
     if not only_aggregates:
         write_movie(cleaned)
 
-    write_aggregates(agg_g, agg_c, agg_y)
+    write_aggregates(agg_g, agg_c, agg_y, dim_g, dim_c, dim_y)
 
     logging.info("ETL 完成 at %s", datetime.now().isoformat(timespec="seconds"))
     spark.stop()

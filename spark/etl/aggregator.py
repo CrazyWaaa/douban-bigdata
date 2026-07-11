@@ -1,18 +1,27 @@
-"""聚合维度：生成按类型 / 地区 / 年份的统计表（写入 agg_*）。"""
+"""聚合维度：生成按类型 / 地区 / 年份的统计表（写入 agg_*）与 3 张维度表（写入 dim_*）。"""
 from __future__ import annotations
+
+from datetime import datetime
 
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
+from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+
+
+def _explode_delimited(df: DataFrame, source_col: str, alias: str) -> DataFrame:
+    """把 "A / B / C" 这种分隔字段拆成多行并 trim / 去空。"""
+    return (
+        df
+        .filter(F.col(source_col).isNotNull())
+        .select(F.explode(F.split(F.col(source_col), "/")).alias(alias))
+        .withColumn(alias, F.trim(F.col(alias)))
+        .filter((F.col(alias) != "") & F.col(alias).isNotNull())
+        .dropDuplicates([alias])
+    )
 
 
 def agg_genre(movies: DataFrame) -> DataFrame:
-    exploded = (
-        movies
-        .filter(F.col("genre").isNotNull())
-        .select(F.explode(F.split(F.col("genre"), "/")).alias("genre_name"), "rating")
-        .withColumn("genre_name", F.trim(F.col("genre_name")))
-        .filter(F.col("genre_name") != "")
-    )
+    exploded = _explode_delimited(movies, "genre", "genre_name").select("genre_name", "rating")
     return (
         exploded.groupBy("genre_name")
         .agg(
@@ -25,13 +34,7 @@ def agg_genre(movies: DataFrame) -> DataFrame:
 
 
 def agg_country(movies: DataFrame) -> DataFrame:
-    exploded = (
-        movies
-        .filter(F.col("country").isNotNull())
-        .select(F.explode(F.split(F.col("country"), "/")).alias("country_name"), "rating")
-        .withColumn("country_name", F.trim(F.col("country_name")))
-        .filter(F.col("country_name") != "")
-    )
+    exploded = _explode_delimited(movies, "country", "country_name").select("country_name", "rating")
     return (
         exploded.groupBy("country_name")
         .agg(
@@ -56,18 +59,24 @@ def agg_year(movies: DataFrame) -> DataFrame:
     )
 
 
-def dim_genre() -> DataFrame:
-    """维度表来自电影数据中拆分后的全部 genre 名称，写入 dim_genre。"""
-    raise NotImplementedError
+def dim_genre(movies: DataFrame) -> DataFrame:
+    """维度表 dim_genre(id, name)：从 movie 中拆分出的全部 genre 名称，唯一去重。"""
+    rows = _explode_delimited(movies, "genre", "name").orderBy("name")
+    return rows.withColumn("id", F.monotonically_increasing_id().cast(IntegerType())).select("id", "name")
 
 
-def dim_country() -> DataFrame:
-    raise NotImplementedError
+def dim_country(movies: DataFrame) -> DataFrame:
+    """维度表 dim_country(id, name)：从 movie 中拆分出的全部 country 名称，唯一去重。"""
+    rows = _explode_delimited(movies, "country", "name").orderBy("name")
+    return rows.withColumn("id", F.monotonically_increasing_id().cast(IntegerType())).select("id", "name")
 
 
 def dim_year(min_year: int = 1900, max_year: int | None = None) -> DataFrame:
-    """生成年份维度表，max_year 默认取当前年。"""
+    """维度表 dim_year(year)：默认 1900 至当前年（自然年维度，方便前端年代筛选）。"""
     if max_year is None:
-        max_year = 2025
-    years = list(range(min_year, max_year + 1))
-    return None  # 实际由 job.py 通过 createDataFrame 实现
+        max_year = datetime.now().year
+    schema = StructType([StructField("year", IntegerType(), nullable=False)])
+    # createDataFrame 需要 SparkSession，从环境取不到就延迟到调用方注入；这里直接通过 Range 构造
+    from pyspark.sql import SparkSession
+    spark = SparkSession.getActiveSession() or SparkSession.builder.getOrCreate()
+    return spark.createDataFrame([(y,) for y in range(min_year, max_year + 1)], schema=schema)
