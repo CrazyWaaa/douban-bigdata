@@ -112,17 +112,19 @@ def cmd_load(args) -> None:
         print("[WARN] 未找到 *.jsonl，先跑爬虫或把 JSONL 放到 crawler/data/raw/")
         return
 
+    # 先不指定数据库：避免 douban 数据库还没建时就报 "Unknown database"
     conn = pymysql.connect(
         host=args.db_host, port=args.db_port, user=args.db_user,
-        password=args.db_password, db=args.db_name, charset="utf8mb4",
+        password=args.db_password, charset="utf8mb4",
         connect_timeout=10,
     )
     try:
+        db_name = args.db_name or "douban"
         with conn.cursor() as cur:
             cur.execute(
-                "CREATE DATABASE IF NOT EXISTS douban CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+                f"CREATE DATABASE IF NOT EXISTS {db_name} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
             )
-            cur.execute("USE douban")
+            cur.execute(f"USE {db_name}")
             cur.execute(
                 """CREATE TABLE IF NOT EXISTS movie (
                     id BIGINT AUTO_INCREMENT PRIMARY KEY,

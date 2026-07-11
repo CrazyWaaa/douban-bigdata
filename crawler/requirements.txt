@@ -1,5 +1,6 @@
 requests>=2.31.0
 beautifulsoup4>=4.12.0
 lxml>=4.9.0
-fake-useragent>=1.4.0
 PyMySQL>=1.1.0
+# 模拟浏览器 TLS 指纹（对付豆瓣 429 的核心依赖，可跳过，未装自动退回 requests）
+curl-cffi>=0.7.0

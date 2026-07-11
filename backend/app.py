@@ -28,6 +28,6 @@ def create_app() -> Flask:
     return app
 
 
-if __name__ == "__main__":
+if __name__ in ("__main__", "backend.app"):
     app = create_app()
     app.run(host="0.0.0.0", port=5000, debug=True)

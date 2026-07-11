@@ -1,11 +1,24 @@
 """业务层：聚合与查询，统一返回字典而非 ORM 对象，便于 JSON 序列化。"""
 from __future__ import annotations
 
+import json
 from typing import Any
 from sqlalchemy import func, select
 
 from ..db import get_session
 from ..models import AggCountry, AggGenre, AggYear, Movie
+
+
+def _try_parse_json(value):
+    """rating_stars / related_pics 等字段存的是 JSON 字符串，前端需要结构。"""
+    if value is None or value == "":
+        return None
+    if isinstance(value, (dict, list)):
+        return value
+    try:
+        return json.loads(value)
+    except (TypeError, ValueError):
+        return value
 
 
 def dashboard_summary() -> dict[str, Any]:
@@ -122,8 +135,8 @@ def _serialize_movie(m: Movie, rank: int | None = None) -> dict:
         "comment_short_count": int(m.comment_short_count) if getattr(m, "comment_short_count", None) is not None else None,
         "comment_review_count": int(m.comment_review_count) if getattr(m, "comment_review_count", None) is not None else None,
         "discussion_count": int(m.discussion_count) if getattr(m, "discussion_count", None) is not None else None,
-        "rating_stars": getattr(m, "rating_stars", None),
-        "related_pics": getattr(m, "related_pics", None),
+        "rating_stars": _try_parse_json(getattr(m, "rating_stars", None)),
+        "related_pics": _try_parse_json(getattr(m, "related_pics", None)),
     }
     for k, v in extras.items():
         if v not in (None, "", "null", "[]", "{}"):
