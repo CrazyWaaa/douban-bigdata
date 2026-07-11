@@ -1,13 +1,23 @@
-"""豆瓣电影爬虫入口：调度各类型/地区的抓取任务，将结果以 JSONL 输出到本地待上传目录。"""
+"""爬虫入口：调度 DoubanCrawler，生成 JSONL 到 data/raw。"""
+from __future__ import annotations
+
+import logging
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from crawler.douban import DoubanCrawler  # noqa: E402
 
 
 def main() -> None:
-    print("[crawler] 抓取占位实现：待补充抓取逻辑")
-    print("[crawler] 目标规模：1 万+ 条")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
+    crawler = DoubanCrawler()
+    total = crawler.run()
+    print(f"[crawler] 完成，共写入 {total} 条")
 
 
 if __name__ == "__main__":
