@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 from typing import Any
-from sqlalchemy import func, select
+from sqlalchemy import func, select, case
 
 from ..db import get_session
 from ..models import AggCountry, AggGenre, AggYear, Movie
@@ -97,8 +97,13 @@ def count_by_year() -> list[dict]:
 def top_rated(limit: int = 50) -> list[dict]:
     s = get_session()
     try:
+        rating_null = case((Movie.rating.is_(None), 1), else_=0)
+        count_null = case((Movie.rating_count.is_(None), 1), else_=0)
         rows = s.execute(
-            select(Movie).order_by(Movie.rating.desc().nulls_last(), Movie.rating_count.desc().nulls_last()).limit(limit)
+            select(Movie).order_by(
+                rating_null.asc(), Movie.rating.desc(),
+                count_null.asc(), Movie.rating_count.desc(),
+            ).limit(limit)
         ).scalars().all()
         return [_serialize_movie(m, rank=i + 1) for i, m in enumerate(rows)]
     finally:
