@@ -21,13 +21,41 @@ class Movie:
 
 
 _NUM_RE = re.compile(r"(\d+)")
+_RC_RE = re.compile(r"(\d+)\s*人评价")
 
 
-def _safe_int(text: str | None) -> int | None:
-    if not text:
-        return None
-    m = _NUM_RE.search(text)
-    return int(m.group(1)) if m else None
+def _normalize_spaces(text: str) -> str:
+    return re.sub(r"\s+", " ", text or "").strip()
+
+
+def _split_director_actors(first_line: str) -> tuple[str, str]:
+    text = _normalize_spaces(first_line)
+    director = ""
+    actors = ""
+    m = re.search(r"导演:\s*(.+?)\s*(?:主演:\s*(.+?))?$", text)
+    if m:
+        director = (m.group(1) or "").strip()
+        actors = (m.group(2) or "").strip()
+    else:
+        director = text.replace("导演:", "").strip()
+    return director, actors
+
+
+def _split_year_country_genre(second_line: str) -> tuple[int | None, str, str]:
+    text = _normalize_spaces(second_line)
+    parts = [p.strip() for p in text.split("/") if p.strip()]
+    year_val = None
+    country = ""
+    genre = ""
+    if parts:
+        ym = _NUM_RE.search(parts[0])
+        if ym:
+            year_val = int(ym.group(1))
+    if len(parts) >= 2:
+        country = parts[1].strip()
+    if len(parts) >= 3:
+        genre = "/".join(parts[2:]).strip()
+    return year_val, country, genre
 
 
 def parse_top250_item(li) -> Movie | None:
@@ -39,41 +67,43 @@ def parse_top250_item(li) -> Movie | None:
         douban_id = href.rstrip("/").split("/")[-1]
         if not douban_id.isdigit():
             return None
+
         title_el = li.select_one("span.title")
         title = title_el.get_text(strip=True) if title_el else ""
+
         rating_el = li.select_one("span.rating_num")
         rating = float(rating_el.get_text(strip=True)) if rating_el else None
-        count_el = li.select_one("div.star > span")
-        rating_count = _safe_int(count_el.get_text(strip=True) if count_el else None)
-        info_el = li.select_one("div.bd > p")
-        info = info_el.get_text(" ", strip=True) if info_el else ""
-        director = actors = year_str = country = genre = ""
-        if info:
-            first, _, second = info.partition("\n")
-            first = first.strip()
-            m = re.match(r"导演:\s*([^/]+?)\s*/\s*主演:\s*(.+)", first)
+
+        # 仅匹配 "N人评价"，不再兜底，避免被译名中的数字干扰
+        rating_count = None
+        for s in li.select("span"):
+            t = s.get_text(strip=True)
+            m = _RC_RE.search(t)
             if m:
-                director = m.group(1).strip()
-                actors = m.group(2).strip()
-            else:
-                director = first.replace("导演:", "").strip()
-            second = second.strip()
-            parts = second.split("/")
-            if len(parts) >= 3:
-                year_str = parts[0].strip()
-                country = parts[1].strip()
-                genre = parts[2].strip()
-            elif len(parts) == 2:
-                year_str = parts[0].strip()
-                country = parts[1].strip()
+                rating_count = int(m.group(1))
+                break
+
+        director = actors = ""
+        year_val = None
+        country = ""
+        genre = ""
+        info_el = li.select_one("div.bd > p")
+        if info_el:
+            lines = [ln for ln in info_el.get_text("\n").split("\n") if ln.strip()]
+            if lines:
+                director, actors = _split_director_actors(lines[0])
+            if len(lines) >= 2:
+                year_val, country, genre = _split_year_country_genre(lines[1])
+
         poster_el = li.select_one("div.pic > a > img")
         poster_url = poster_el.get("src") if poster_el else ""
+
         return Movie(
             douban_id=douban_id,
             title=title,
             director=director,
             actors=actors,
-            year=int(year_str) if year_str.isdigit() else None,
+            year=year_val,
             country=country,
             genre=genre,
             rating=rating,
@@ -86,7 +116,6 @@ def parse_top250_item(li) -> Movie | None:
 
 
 def parse_subject_page(html: str, base: Movie) -> Movie:
-    """用详情页（subject）丰富 Movie：summary 等可选字段。"""
     from bs4 import BeautifulSoup  # type: ignore
     soup = BeautifulSoup(html, "lxml")
     summary_el = soup.select_one("span.all.hidden, span[property='v:summary']")

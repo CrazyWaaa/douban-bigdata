@@ -6,7 +6,6 @@ import logging
 import os
 import random
 import time
-from dataclasses import asdict
 from typing import Iterable
 
 import requests
@@ -74,6 +73,7 @@ class DoubanCrawler:
             url = f"{self.cfg.top250_url}?start={page * 25}&filter="
             html = self._fetch(url)
             if not html:
+                LOGGER.warning("Top250 page=%s fetch failed", page)
                 continue
             soup = BeautifulSoup(html, "lxml")
             count = 0
@@ -106,11 +106,31 @@ class DoubanCrawler:
                 if movie.douban_id in seen:
                     continue
                 seen.add(movie.douban_id)
-                if total < enrich_top_n:
+                if total < enrich_top_n and total >= 0:
                     self.enrich(movie)
                 fout.write(json.dumps(to_dict(movie), ensure_ascii=False) + "\n")
+                fout.flush()
                 total += 1
                 if total >= self.cfg.target_count:
                     break
         LOGGER.info("wrote %s records to %s", total, out_path)
         return total
+
+    def enrich_only(self, ids: list[str], out_name: str = "movies_enriched.jsonl") -> int:
+        """对已有 IDs 重试详情页，成功才覆盖写。"""
+        out_path = os.path.join(self.cfg.output_dir, out_name)
+        rewritten = 0
+        for douban_id in ids:
+            movie = Movie(
+                douban_id=douban_id, title="", director="", actors="",
+                year=None, country="", genre="", rating=None,
+                rating_count=None, summary="", poster_url="",
+            )
+            self.enrich(movie)
+            # 只有当 summary 真正拿到才覆盖；否则保留原 movie 中的 title 等
+            if movie.summary:
+                with open(out_path, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(to_dict(movie), ensure_ascii=False) + "\n")
+                rewritten += 1
+        LOGGER.info("enriched %s records -> %s", rewritten, out_path)
+        return rewritten

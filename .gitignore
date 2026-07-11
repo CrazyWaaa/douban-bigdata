@@ -15,9 +15,8 @@ spark-warehouse/
 metastore_db/
 derby.log
 
-# MySQL / dumps
+# MySQL dumps (skip docs/*.sql via allowlist below)
 *.sql
-!docs/*.sql
 
 # Logs
 logs/
@@ -34,3 +33,11 @@ Thumbs.db
 
 # Env
 .env
+
+# Crawler data
+data/
+crawler/data/
+
+# Force keep docs SQL files
+!docs/
+!docs/*.sql
