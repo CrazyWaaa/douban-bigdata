@@ -38,6 +38,11 @@ Thumbs.db
 data/
 crawler/data/
 
+# Debug / scratch scripts (local validation only, not shipped)
+scripts/_test_*.py
+scripts/*-debug*.ps1
+scripts/*-foreground*.ps1
+
 # Force keep docs SQL files
 !docs/
 !docs/*.sql
