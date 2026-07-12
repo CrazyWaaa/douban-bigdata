@@ -1,4 +1,4 @@
-﻿# Douban Bigdata - Docker Compose
+# Douban Bigdata - Docker Compose
 # 重要:所有持久化数据全部位于 D 盘,严禁写到 C 盘。
 #
 # 使用:
@@ -41,6 +41,7 @@ services:
       # 启动时自动建表 + 灌入种子数据
       - ./docs/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./scripts/seed-data:/docker-entrypoint-initdb.d/init:ro
+      - ./docs/migrations:/docker-entrypoint-initdb.d/migrations:ro
     networks:
       - douban-net
     ports:
@@ -109,7 +110,7 @@ services:
     depends_on:
       - backend
     volumes:
-      - ${DATA_ROOT}/dist:/usr/share/nginx/html:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro
       - ./deploy/nginx/douban.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - douban-net

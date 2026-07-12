@@ -1,20 +1,39 @@
-﻿.git
+﻿# VCS / IDE / OS
+.git
 .gitignore
-.venv
-venv
-__pycache__
-*.pyc
-*.pyo
-node_modules
-dist
-.vite
+.gitattributes
 .idea
 .vscode
 .DS_Store
+Thumbs.db
+
+# Python
+.venv
+venv
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.egg-info
+.pytest_cache
+.ruff_cache
+.mypy_cache
+
+# Node / 前端构建产物(node_modules 永远不该进任何镜像)
+node_modules
+frontend/dist
+**/dist
+.vite
+
+# 数据 / 日志 / 本地配置
+.env
 *.log
-data/raw/*.jsonl
-data/raw/sample_page.html
-data/uploads/*
+logs/
+hdfs/
+data/
+crawler/data/
+scripts/seed-data/init
 docs/screenshots
 README.md
-=3.5.0
+DEPLOY*.md
