@@ -30,7 +30,7 @@ export const useMoviesStore = defineStore('movies', {
       if (this.relatedCache[doubanId]) return this.relatedCache[doubanId]
       try {
         const data = await api.related(doubanId, limit)
-        this.relatedCache[doubanId] = data?.data || []
+        this.relatedCache[doubanId] = Array.isArray(data) ? data : []
         return this.relatedCache[doubanId]
       } catch {
         return []
@@ -40,7 +40,7 @@ export const useMoviesStore = defineStore('movies', {
       if (this.neighborsCache[doubanId]) return this.neighborsCache[doubanId]
       try {
         const data = await api.neighbors(doubanId)
-        this.neighborsCache[doubanId] = data?.data || { prev: null, next: null }
+        this.neighborsCache[doubanId] = data && typeof data === 'object' ? data : { prev: null, next: null }
         return this.neighborsCache[doubanId]
       } catch {
         return { prev: null, next: null }
