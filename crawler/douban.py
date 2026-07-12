@@ -18,6 +18,7 @@ from .config import CONFIG, CrawlerConfig
 from .parser import Movie, parse_top250_item, parse_explore_card, parse_subject_page, to_dict
 from .proxy import ProxyPool
 from .ua import common_headers, pick_user_agent, reset_user_agent
+from .config import load_proxies_from_file
 
 LOGGER = logging.getLogger(__name__)
 
@@ -33,14 +34,36 @@ class DoubanCrawler:
     def __init__(self, config: CrawlerConfig | None = None) -> None:
         self.cfg = config or CONFIG
         self.pool = ProxyPool(self.cfg)
+        # 运行时再注入代理文件加载(在 CLI 阶段调用)
         # 进程内 UA 固定，避免每次请求都换        self.ua = pick_user_agent()
         # 一个 requests Session，用来保持 cookie（第一次访问后的 cookie 很重要）
         self._requests_session = requests.Session()
         os.makedirs(self.cfg.output_dir, exist_ok=True)
+        # 豆瓣对 cookie 校验很严,首次访问必须给一个 bid,后续会话会自动维持
+        import random as _r
+        _bid = ''.join(_r.choices('0123456789abcdefghijklmnopqrstuvwxyz', k=11))
+        self._requests_session.cookies.set('bid', _bid, domain='.douban.com')
+        LOGGER.info("injected bid cookie: %s", _bid)
 
         # 保守限速：豆瓣对翻页很敏感，把默认 1~3s 拉到 4~8s
         self.cfg.request_interval_min = max(self.cfg.request_interval_min, 6.0)
         self.cfg.request_interval_max = max(self.cfg.request_interval_max, 15.0)
+
+    def load_extra_proxies(self, file_path: str) -> int:
+        """从文件加载代理,追加到现有 pool。返回新加入的数量。"""
+        new_proxies = load_proxies_from_file(file_path)
+        if not new_proxies:
+            return 0
+        before = len(self.pool._proxies)
+        # 去重
+        existing = set(self.pool._proxies)
+        for p in new_proxies:
+            if p not in existing:
+                self.pool._proxies.append(p)
+                existing.add(p)
+        added = len(self.pool._proxies) - before
+        LOGGER.info("loaded %d proxies from %s (pool size=%d)", added, file_path, self.pool.size)
+        return added
 
     def _headers(self, referer: str | None = None) -> dict:
         """返回接近真实浏览器的完整请求头（UA 全程固定）。"""
@@ -81,9 +104,43 @@ class DoubanCrawler:
                     resp = self._requests_session.get(url, **kwargs)
 
                 if resp.status_code == 200:
-                    return resp.text
+                    # 解压:gzip / br / deflate
+                    import gzip as _gzip
+                    try:
+                        import brotli as _brotli
+                        _HAS_BROTLI = True
+                    except ImportError:
+                        _brotli = None
+                        _HAS_BROTLI = False
+                    import zlib as _zlib
+                    raw = resp.content
+                    enc = (resp.headers.get("Content-Encoding") or "").lower()
+                    if "br" in enc and _HAS_BROTLI:
+                        try: raw = _brotli.decompress(raw)
+                        except Exception as _e: LOGGER.warning("brotli fail: %s", _e)
+                    elif "gzip" in enc or (raw[:2] == b"\x1f\x8b"):
+                        try: raw = _gzip.decompress(raw)
+                        except Exception as _e: LOGGER.warning("gzip fail: %s", _e)
+                    elif "deflate" in enc:
+                        try: raw = _zlib.decompress(raw, -_zlib.MAX_WBITS)
+                        except Exception as _e: LOGGER.warning("deflate fail: %s", _e)
+                    text = raw.decode("utf-8", errors="replace")
 
-                # 429 / 403 / 5xx：退避后重试
+                    # 调试:打印长度 + 前 80 字符 + 保存最近响应
+                    import os as _os
+                    _dbg_dir = _os.path.join(self.cfg.output_dir, "_debug")
+                    _os.makedirs(_dbg_dir, exist_ok=True)
+                    _dbg_file = _os.path.join(_dbg_dir, "last_response.html")
+                    try:
+                        with open(_dbg_file, "w", encoding="utf-8") as _df:
+                            _df.write(text)
+                    except Exception:
+                        pass
+                    LOGGER.info("DBG status=200 url=%s enc=%s len=%d preview=%r",
+                                url, enc or "(none)", len(text),
+                                text[:80].replace(chr(10), " "))
+                    return text
+
                 if resp.status_code in (429, 403) or resp.status_code >= 500:
                     # 429 至少从 10s 起步，指数退避                    wait = max(10.0, self.cfg.backoff_base ** attempt * 2)
                     LOGGER.warning(
@@ -117,7 +174,7 @@ class DoubanCrawler:
                 continue
             soup = BeautifulSoup(html, "lxml")
             count = 0
-            for li in soup.select("ol.grid_view > li"):
+            for li in soup.select("ol.grid_view > div.item, ol.grid_view > li"):
                 movie = parse_top250_item(li)
                 if movie is None:
                     continue
@@ -187,10 +244,24 @@ class DoubanCrawler:
         if html:
             try:
                 parse_subject_page(html, movie)
+                # 至少要有标题/导演才算"成功 enrich"
+                if not (movie.title or movie.director):
+                    self._record_bad_id(movie.douban_id, "no_fields_after_parse")
             except Exception as exc:
                 LOGGER.debug("enrich fail %s: %s", movie.douban_id, exc)
+                self._record_bad_id(movie.douban_id, f"parse_error:{exc!s}"[:80])
+        else:
+            self._record_bad_id(movie.douban_id, "fetch_failed")
         self._sleep()
         return movie
+
+    def _record_bad_id(self, douban_id: str, reason: str) -> None:
+        path = os.path.join(self.cfg.output_dir, self.cfg.bad_ids_file)
+        try:
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(f"{douban_id}\t{reason}\n")
+        except Exception as e:
+            LOGGER.debug("record bad_id fail: %s", e)
 
     def run(
         self,
@@ -198,24 +269,49 @@ class DoubanCrawler:
         out_name: str = "movies.jsonl",
         enrich_all: bool = False,
         sources: list[str] | None = None,
+        resume: bool = True,
     ) -> int:
-        """sources: 子集 ['top250','genres','countries']；None 等价于只 Top250（向后兼容）。"""
+        """断点续爬版 run():
+        - resume=True:启动时扫描已存在的 out_name,把 douban_id 加入 seen,跳过
+        - 每条记录 enrich 失败写一行到 bad_ids.txt,方便后续补抓
+        - 写入模式为追加('a'),崩了重跑不丢数据
+        """
         if sources is None:
             sources = ["top250"]
         out_path = os.path.join(self.cfg.output_dir, out_name)
+        os.makedirs(self.cfg.output_dir, exist_ok=True)
+
+        # ====== 断点续爬:加载已有 douban_id ======
         seen: set[str] = set()
         total = 0
+        if resume and os.path.exists(out_path):
+            with open(out_path, "r", encoding="utf-8") as fin:
+                for line in fin:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        obj = json.loads(line)
+                        did = obj.get("douban_id")
+                        if did:
+                            seen.add(str(did))
+                            total += 1
+                    except json.JSONDecodeError:
+                        continue
+            if seen:
+                LOGGER.info("resume: loaded %d existing records from %s", len(seen), out_path)
 
-        # 按 sources 顺序串行抓取（避免并发触发 429）
+        # ====== 按 sources 顺序串行抓取 ======
         iterables = []
         if "top250" in sources:
             iterables.append(self.crawl_top250())
-        if "genres" in sources:
+        if "genres" in sources and self.cfg.genres:
             iterables.append(self.crawl_by_genre())
-        if "countries" in sources:
+        if "countries" in sources and self.cfg.countries:
             iterables.append(self.crawl_by_country())
 
-        with open(out_path, "w", encoding="utf-8") as fout:
+        # ====== 追加写入 ======
+        with open(out_path, "a", encoding="utf-8") as fout:
             for it in iterables:
                 for movie in it:
                     if movie.douban_id in seen:
@@ -226,10 +322,13 @@ class DoubanCrawler:
                     fout.write(json.dumps(to_dict(movie), ensure_ascii=False) + "\n")
                     fout.flush()
                     total += 1
+                    if total % 10 == 0:
+                        LOGGER.info("progress: total=%d/%d (last=%s)", total, self.cfg.target_count, movie.title)
                     if total >= self.cfg.target_count:
                         LOGGER.info("hit target_count=%s, stop early", self.cfg.target_count)
                         LOGGER.info("wrote %s records to %s", total, out_path)
                         return total
+
         LOGGER.info("wrote %s records to %s", total, out_path)
         return total
 

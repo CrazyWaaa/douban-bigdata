@@ -1,0 +1,15 @@
+# 代理列表示例:crawler/proxies.txt
+# 每行一个 URL,支持 http/https/socks5
+# 以 # 开头的行是注释
+#
+# 本地代理(常见于 VPN/Clash):
+http://127.0.0.1:7890
+#
+# HTTP 代理:
+# http://user:pass@1.2.3.4:8080
+#
+# SOCKS5 代理:
+# socks5://user:pass@1.2.3.4:1080
+
+# 提示:把上面的注释行取消注释、改成你自己的代理,然后运行:
+#   python crawler/main.py --proxy-file crawler/proxies.txt

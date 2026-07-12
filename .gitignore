@@ -44,5 +44,14 @@ scripts/*-debug*.ps1
 scripts/*-foreground*.ps1
 
 # Force keep docs SQL files
-!docs/
-!docs/*.sql
+
+*.sql
+
+# Crawler runtime(本地配置 / 临时产物,不入仓)
+crawler/proxies.txt
+crawler/_debug/
+docs/douban_clean.sql
+data/raw/_debug/
+
+# Keep project seed SQL;临时清洗产物 douban_clean.sql 已忽略
+!docs/douban.sql
