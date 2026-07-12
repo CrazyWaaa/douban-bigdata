@@ -6,7 +6,7 @@ import logging
 from flask import Flask, jsonify
 from flask_cors import CORS
 
-from .auth import get_api_key, is_auth_enabled
+from auth import get_api_key, is_auth_enabled
 
 # 限流可选：flask-limiter 装不上时跳过（不影响鉴权主功能）
 try:
@@ -15,9 +15,9 @@ try:
     _HAS_LIMITER = True
 except ImportError:
     _HAS_LIMITER = False
-from .routes.dashboard import bp as dashboard_bp
-from .routes.health import bp as health_bp
-from .routes.movies import bp as movies_bp
+from routes.dashboard import bp as dashboard_bp
+from routes.health import bp as health_bp
+from routes.movies import bp as movies_bp
 
 
 def create_app() -> Flask:
@@ -56,6 +56,7 @@ def create_app() -> Flask:
     return app
 
 
+app = create_app()
+
 if __name__ == "__main__":
-    app = create_app()
     app.run(host="0.0.0.0", port=5000, debug=True)

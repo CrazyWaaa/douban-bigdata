@@ -4,7 +4,7 @@ from __future__ import annotations
 from flask import Blueprint, jsonify
 from sqlalchemy import text
 
-from ..db import get_session
+from db import get_session
 
 bp = Blueprint("health", __name__, url_prefix="/api")
 

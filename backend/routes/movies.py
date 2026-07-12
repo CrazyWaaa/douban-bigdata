@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from flask import Blueprint, abort, jsonify, request
 
-from ..auth import require_api_key
-from ..services import movies as service
+from auth import require_api_key
+from services import movies as service
 
 bp = Blueprint("movies", __name__, url_prefix="/api")
 

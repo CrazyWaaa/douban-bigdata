@@ -5,8 +5,8 @@ import json
 from typing import Any
 from sqlalchemy import func, select, case
 
-from ..db import get_session
-from ..models import AggCountry, AggGenre, AggYear, Movie
+from db import get_session
+from models import AggCountry, AggGenre, AggYear, Movie
 
 
 def _try_parse_json(value):
