@@ -13,3 +13,8 @@ bp = Blueprint("dashboard", __name__, url_prefix="/api")
 @bp.get("/dashboard/summary")
 def summary():
     return jsonify(service.dashboard_summary())
+
+@require_api_key
+@bp.get("/dashboard/summary_extended")
+def summary_extended():
+    return jsonify(service.summary_extended())
