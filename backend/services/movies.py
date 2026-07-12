@@ -177,13 +177,19 @@ def detail(douban_id: str) -> dict | None:
 
 # ============ 新增业务函数 ============
 def summary_extended() -> dict[str, Any]:
-    """比 dashboard_summary 多两个统计:最高分、总评价数。"""
+    """聚合概览:总数/均分/最高分/单部最高评分人数/平均评分人数/维度数。"""
     s = get_session()
     try:
         total = s.execute(select(func.count(Movie.id))).scalar() or 0
         avg = s.execute(select(func.avg(Movie.rating))).scalar()
         max_rating = s.execute(select(func.max(Movie.rating))).scalar()
-        total_count = s.execute(select(func.sum(Movie.rating_count))).scalar() or 0
+        avg_count = s.execute(select(func.avg(Movie.rating_count))).scalar()
+        top_rating_row = s.execute(
+            select(Movie.title, Movie.rating_count)
+            .where(Movie.rating_count.isnot(None))
+            .order_by(Movie.rating_count.desc())
+            .limit(1)
+        ).first()
         distinct_year = s.execute(select(func.count(func.distinct(Movie.year)))).scalar() or 0
         distinct_genre = s.execute(select(func.count(func.distinct(Movie.genre)))).scalar() or 0
         distinct_country = s.execute(select(func.count(func.distinct(Movie.country)))).scalar() or 0
@@ -191,7 +197,9 @@ def summary_extended() -> dict[str, Any]:
             "total": int(total),
             "avg_rating": float(avg) if avg is not None else None,
             "max_rating": float(max_rating) if max_rating is not None else None,
-            "total_rating_count": int(total_count),
+            "avg_rating_count": int(avg_count) if avg_count is not None else None,
+            "top_rating_count_title": top_rating_row[0] if top_rating_row else None,
+            "top_rating_count": int(top_rating_row[1]) if top_rating_row and top_rating_row[1] is not None else None,
             "distinct_year": int(distinct_year),
             "distinct_genre": int(distinct_genre),
             "distinct_country": int(distinct_country),
@@ -365,9 +373,12 @@ def paged_movies(
         }
         sort_col = sort_map.get(sort, Movie.rating)
         order_col = sort_col.asc() if order.lower() == "asc" else sort_col.desc()
-        # NULL 处理:评分/评价数为 NULL 的排到末尾
+        # NULL 处理:评分/评价数为 NULL 的排到末尾；其他字段用默认行为。
+        is_asc = order.lower() == "asc"
         if sort in ("rating", "rating_count"):
-            order_col = [sort_col.is_(None), sort_col.asc() if order.lower() == "asc" else sort_col.desc()]
+            order_clauses = [sort_col.is_(None), sort_col.asc() if is_asc else sort_col.desc()]
+        else:
+            order_clauses = [sort_col.asc() if is_asc else sort_col.desc()]
         q = select(Movie)
         cnt_q = select(func.count(Movie.id))
         if genre:
@@ -386,7 +397,7 @@ def paged_movies(
         total = int(s.execute(cnt_q).scalar() or 0)
         size = max(1, min(size, 100))
         page = max(1, page)
-        rows = s.execute(q.order_by(order_col).limit(size).offset((page - 1) * size)).scalars().all()
+        rows = s.execute(q.order_by(*order_clauses).limit(size).offset((page - 1) * size)).scalars().all()
         return {
             "total": total,
             "page": page,
