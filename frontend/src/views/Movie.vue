@@ -3,7 +3,7 @@
     <h2>影片详情</h2>
     <div v-if="data" class="card">
       <div class="movie-head">
-        <img v-if="data.poster_url" :src="data.poster_url" class="poster" alt="封面">
+        <img v-if="data.poster_url" :src="imgSrc(data.poster_url)" class="poster" alt="封面" referrerpolicy="no-referrer" loading="lazy" @error="onImgError($event)">
         <div class="info">
           <h3>{{ data.title }}</h3>
           <div class="muted" style="margin:6px 0;">
@@ -66,11 +66,61 @@
       <div v-if="relatedPics.length" class="pics-box">
         <h4>相关图片</h4>
         <div class="pics-grid">
-          <img v-for="(src, i) in relatedPics" :key="i" :src="src" alt="剧照">
+          <img v-for="(src, i) in relatedPics" :key="i" :src="imgSrc(src)" alt="剧照" referrerpolicy="no-referrer" loading="lazy" @error="onImgError($event)">
         </div>
       </div>
-    </div>
-    <div v-else class="muted">加载中...</div>
+
+      <!-- 相关推荐 -->
+          </div>
+<div v-else class="muted">加载中...</div>
+
+  <!-- 整卡片之外的:相关推荐 + 上下部 -->
+  <div v-if="related.length" class="related-box">
+        <h4>相关推荐</h4>
+        <div class="related-grid">
+          <router-link
+            v-for="r in related"
+            :key="r.douban_id"
+            :to="`/movie/${r.douban_id}`"
+            class="related-card"
+          >
+            <img
+              v-if="r.poster_url"
+              :src="imgSrc(r.poster_url)"
+              :alt="r.title"
+              referrerpolicy="no-referrer"
+              loading="lazy"
+              @error="onImgError($event)"
+            />
+            <div class="related-info">
+              <div class="related-title">{{ r.title }}</div>
+              <div class="related-meta">
+                <span>{{ r.year || '-' }}</span>
+                <span class="related-rating">{{ r.rating?.toFixed?.(1) ?? '-' }}</span>
+              </div>
+            </div>
+          </router-link>
+        </div>
+      </div>
+
+      <!-- 上下部导航 -->
+      <div v-if="neighbors.prev || neighbors.next" class="neighbors">
+        <router-link
+          v-if="neighbors.prev"
+          :to="`/movie/${neighbors.prev.douban_id}`"
+          class="neighbor-link prev"
+        >
+          ← 上一部:{{ neighbors.prev.title }}
+        </router-link>
+        <span v-else></span>
+        <router-link
+          v-if="neighbors.next"
+          :to="`/movie/${neighbors.next.douban_id}`"
+          class="neighbor-link next"
+        >
+          下一部:{{ neighbors.next.title }} →
+        </router-link>
+      </div>
   </div>
 </template>
 
@@ -78,9 +128,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '../api'
+import { useMoviesStore } from '../stores/movies'
 
 const data = ref(null)
+const related = ref([])
+const neighbors = ref({})
 const route = useRoute()
+const moviesStore = useMoviesStore()
 
 const relatedPics = computed(() => {
   if (!data.value?.related_pics) return []
@@ -116,7 +170,36 @@ const ratingStarsArray = computed(() => {
 
 onMounted(async () => {
   data.value = (await api.detail(route.params.id)).data
+  // 异步加载相关推荐 & 上下部,不阻塞主内容
+  related.value = await moviesStore.fetchRelated(route.params.id, 12)
+  neighbors.value = await moviesStore.fetchNeighbors(route.params.id)
 })
+
+// 图片兜底:豆瓣图床有防盗链,直接访问可能 403。
+// 1) 强制走 no-referrer(模板已加)
+// 2) 若失败回退到本地代理(/img-proxy?url=...),nginx 会代理到 doubanio.com
+const IMG_PROXY = '/img-proxy?url='
+
+function imgSrc(url) {
+  if (!url) return ''
+  // 已经是相对路径或代理路径就不动
+  if (url.startsWith('/')) return url
+  // 豆瓣图床走代理
+  if (/doubanio\.com|douban\.com/i.test(url)) return IMG_PROXY + encodeURIComponent(url)
+  return url
+}
+
+function onImgError(e) {
+  const el = e.target
+  if (!el || el.dataset.fallback) return
+  el.dataset.fallback = '1'
+  const original = el.getAttribute('src') || ''
+  if (original.includes(IMG_PROXY)) return // 已经是代理,不再回退
+  // 把当前 src 解析成原始 url 再走代理
+  const m = original.match(/[?&]url=([^&]+)/)
+  const raw = m ? decodeURIComponent(m[1]) : original
+  el.src = IMG_PROXY + encodeURIComponent(raw)
+}
 </script>
 
 <style scoped>
@@ -140,5 +223,36 @@ onMounted(async () => {
 .stars-list .pct { width: 48px; text-align: right; color: #cbd5e1; }
 .pics-box { margin-top: 16px; }
 .pics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-top: 8px; }
-.pics-grid img { width: 100%; height: 100px; object-fit: cover; border-radius: 6px; }
-</style>
+.pics-grid img { width: 100%; height: 100px; object-fit: cover; border-radius: 6px; background: #1f2937; }
+img { background-color: #1f2937; }
+img[data-fallback='1'] { opacity: 0.6; }
+
+.related-box { margin-top: 16px; }
+.related-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px; margin-top: 8px;
+}
+.related-card {
+  background: #0b1220; border: 1px solid #1f2937; border-radius: 6px;
+  overflow: hidden; text-decoration: none; color: var(--text);
+  transition: transform 0.15s, border-color 0.15s;
+}
+.related-card:hover { transform: translateY(-2px); border-color: var(--primary); }
+.related-card img { width: 100%; height: 160px; object-fit: cover; display: block; background: #1f2937; }
+.related-info { padding: 8px; }
+.related-title { font-size: 13px; font-weight: 500; line-height: 1.3; }
+.related-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 4px; }
+.related-rating { color: var(--primary); font-weight: bold; }
+
+.neighbors {
+  display: flex; justify-content: space-between;
+  margin-top: 16px; padding: 10px 14px;
+  background: #0b1220; border: 1px solid #1f2937; border-radius: 6px;
+}
+.neighbor-link { color: var(--primary); font-size: 13px; max-width: 45%; }
+.neighbor-link.prev { text-align: left; }
+.neighbor-link.next { text-align: right; margin-left: auto; }
+.neighbor-link:hover { text-decoration: underline; }</style>
+
+
+
