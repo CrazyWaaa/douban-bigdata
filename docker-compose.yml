@@ -45,7 +45,8 @@ services:
     networks:
       - douban-net
     ports:
-      - "${MYSQL_HOST_PORT:-3306}:3306"
+      # Only bind MySQL to loopback; never expose the database publicly.
+      - "127.0.0.1:${MYSQL_HOST_PORT:-3306}:3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root_pwd}"]
       interval: 10s
@@ -110,7 +111,7 @@ services:
     depends_on:
       - backend
     volumes:
-      - ./frontend/dist:/usr/share/nginx/html:ro
+      - ${FRONTEND_DIST:-./frontend/dist}:/usr/share/nginx/html:ro
       - ./deploy/nginx/douban.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - douban-net
