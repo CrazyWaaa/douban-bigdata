@@ -3,7 +3,7 @@
     <header class="page-head fade-up">
       <div>
         <h1 class="page-title">地区分布</h1>
-        <p class="page-sub">按制片地区聚合,看国别偏好</p>
+        <p class="page-sub">按制片地区聚合，看国别偏好</p>
       </div>
     </header>
     <div v-if="loading" class="muted fade-up">加载中…</div>
@@ -11,12 +11,12 @@
       <UiChartCard title="Top10 数量 + 均分" class="fade-up" style="animation-delay: 60ms">
         <EChart :option="dualOption" height="320px" />
       </UiChartCard>
-      <UiChartCard title="数量气泡" class="fade-up" style="animation-delay: 120ms">
-        <EChart :option="bubbleOption" height="320px" />
+      <UiChartCard title="数量占比饼图" class="fade-up" style="animation-delay: 120ms">
+        <EChart :option="pieOption" height="320px" />
       </UiChartCard>
       <UiChartCard title="Top10 数量" class="fade-up dim-grid__full" style="animation-delay: 180ms">
         <div class="dim-list">
-          <div v-for="(it, i) in items.slice(0, 10)" :key="it.name" class="dim-list__row" :style="{ animationDelay: (i * 40) + 'ms' }">
+          <div v-for="(it, i) in items.slice(0, 10)" :key="it.name" class="dim-list__row" :style="rowStyle(i)">
             <span class="dim-list__rank">{{ i + 1 }}</span>
             <span class="dim-list__name">{{ it.name }}</span>
             <span class="dim-list__count">{{ it.count }} 部</span>
@@ -29,50 +29,70 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import EChart from '../components/EChart.vue';
-import UiChartCard from '../components/ui/UiChartCard.vue';
-import { api } from '../api';
+import { ref, computed, onMounted } from "vue";
+import EChart from "../components/EChart.vue";
+import UiChartCard from "../components/ui/UiChartCard.vue";
+import { api } from "../api";
 
-const props = defineProps({ dim: 'country' });
+const DIM = "country";
 const items = ref([]);
 const loading = ref(true);
 
+const PIE_COLORS = ["#f472b6", "#a78bfa", "#34d399", "#38bdf8", "#f59e0b", "#22d3ee", "#fb923c", "#fb7185", "#60a5fa", "#facc15"];
+
 onMounted(async () => {
   try {
-    const data = await api.byAvg(props.dim, 30);
+    const data = await api.byAvg(DIM, 30);
     items.value = data?.data || [];
+    console.log("[Country] dim=", DIM, "items.length=", items.value.length, "first=", items.value[0]);
+  } catch (e) {
+    console.error("[Country] load failed", e);
   } finally { loading.value = false; }
 });
 
+function rowStyle(i) {
+  return { animationDelay: (i * 40) + "ms" };
+}
+
 const dualOption = computed(() => ({
-  tooltip: { trigger: 'axis' },
+  tooltip: { trigger: "axis" },
   grid: { left: 40, right: 50, top: 30, bottom: 40 },
-  legend: { textStyle: { color: '#94a3b8' }, top: 0, right: 0 },
-  xAxis: { type: 'category', data: items.value.slice(0, 10).map(d => d.name), axisLabel: { color: '#94a3b8', rotate: 30 } },
+  legend: { textStyle: { color: "#94a3b8" }, top: 0, right: 0 },
+  xAxis: { type: "category", data: items.value.slice(0, 10).map(d => d.name), axisLabel: { color: "#94a3b8", rotate: 30 } },
   yAxis: [
-    { type: 'value', name: '数量', axisLabel: { color: '#94a3b8' }, splitLine: { lineStyle: { color: 'rgba(148,163,184,.12)' } } },
-    { type: 'value', name: '均分', min: 0, max: 10, axisLabel: { color: '#94a3b8' }, splitLine: { show: false } },
+    { type: "value", name: "数量", axisLabel: { color: "#94a3b8" }, splitLine: { lineStyle: { color: "rgba(148,163,184,.12)" } } },
+    { type: "value", name: "均分", min: 0, max: 10, axisLabel: { color: "#94a3b8" }, splitLine: { show: false } },
   ],
   series: [
-    { name: '数量', type: 'bar', data: items.value.slice(0, 10).map(d => d.count),
-      itemStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: '#38bdf8' }, { offset: 1, color: 'rgba(56,189,248,.15)' }] }, borderRadius: [4,4,0,0] } },
-    { name: '均分', type: 'line', yAxisIndex: 1, data: items.value.slice(0, 10).map(d => Number(d.avg_rating)), smooth: true, lineStyle: { color: '#f59e0b', width: 2.5 }, itemStyle: { color: '#f59e0b' } },
+    { name: "数量", type: "bar", data: items.value.slice(0, 10).map(d => d.count),
+      itemStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#f472b6" }, { offset: 1, color: "rgba(244,114,182,.15)" }] }, borderRadius: [4,4,0,0] } },
+    { name: "均分", type: "line", yAxisIndex: 1, data: items.value.slice(0, 10).map(d => Number(d.avg_rating)), smooth: true, lineStyle: { color: "#f59e0b", width: 2.5 }, itemStyle: { color: "#f59e0b" } },
   ],
 }));
 
-const bubbleOption = computed(() => ({
-  tooltip: { trigger: 'item', formatter: p => `${p.data[2]}<br/>数量: ${p.data[0]}<br/>均分: ${p.data[1]}` },
-  grid: { left: 40, right: 20, top: 20, bottom: 40 },
-  xAxis: { type: 'value', name: '数量', axisLabel: { color: '#94a3b8' }, splitLine: { lineStyle: { color: 'rgba(148,163,184,.12)' } } },
-  yAxis: { type: 'value', name: '均分', min: 0, max: 10, axisLabel: { color: '#94a3b8' }, splitLine: { lineStyle: { color: 'rgba(148,163,184,.12)' } } },
-  series: [{
-    type: 'scatter', symbolSize: d => Math.max(12, Math.min(60, d[0] * 3)),
-    data: items.value.map(d => [d.count, Number(d.avg_rating), d.name]),
-    itemStyle: { color: 'rgba(56,189,248,.55)', borderColor: '#38bdf8', borderWidth: 1 },
-    label: { show: true, formatter: p => p.data[2], position: 'right', color: '#94a3b8', fontSize: 11 },
-  }],
-}));
+const pieOption = computed(() => {
+  const top = items.value.slice(0, 10);
+  const data = top.map((d, i) => ({
+    name: String(d.name ?? ""),
+    value: d.count,
+    itemStyle: { color: PIE_COLORS[i % PIE_COLORS.length] },
+  }));
+  return {
+    tooltip: { trigger: "item", formatter: "{b}<br/>数量: <b>{c}</b> 部 ({d}%)" },
+    legend: { type: "scroll", orient: "horizontal", bottom: 0, textStyle: { color: "#94a3b8", fontSize: 11 } },
+    series: [{
+      type: "pie",
+      radius: ["38%", "68%"],
+      center: ["50%", "44%"],
+      avoidLabelOverlap: true,
+      label: { show: true, formatter: "{b}\n{c}部", color: "#cbd5e1", fontSize: 11 },
+      labelLine: { length: 8, length2: 6 },
+      data,
+      animationDuration: 800,
+      animationEasing: "cubicOut",
+    }],
+  };
+});
 </script>
 
 <style scoped>
