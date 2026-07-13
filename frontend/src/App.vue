@@ -33,6 +33,7 @@
       <aside class="app-sidebar">
         <div class="app-sidebar__inner">
           <nav class="app-nav">
+            <div class="app-nav__group-title">核心</div>
             <router-link to="/" class="app-nav__item" active-class="is-active" exact-active-class="is-active">
               <span class="app-nav__dot" aria-hidden="true"></span>
               <span class="app-nav__label">大屏</span>
@@ -43,6 +44,13 @@
               <span class="app-nav__label">高分榜</span>
               <span class="app-nav__desc">TOP 250</span>
             </router-link>
+            <router-link to="/search" class="app-nav__item" active-class="is-active">
+              <span class="app-nav__dot" aria-hidden="true"></span>
+              <span class="app-nav__label">搜索</span>
+              <span class="app-nav__desc">关键词</span>
+            </router-link>
+
+            <div class="app-nav__group-title">维度</div>
             <router-link to="/genre" class="app-nav__item" active-class="is-active">
               <span class="app-nav__dot" aria-hidden="true"></span>
               <span class="app-nav__label">类型</span>
@@ -58,10 +66,57 @@
               <span class="app-nav__label">年代</span>
               <span class="app-nav__desc">按年份</span>
             </router-link>
-            <router-link to="/search" class="app-nav__item" active-class="is-active">
+
+            <div class="app-nav__group-title">高级可视化</div>
+            <router-link to="/radar" class="app-nav__item" active-class="is-active">
               <span class="app-nav__dot" aria-hidden="true"></span>
-              <span class="app-nav__label">搜索</span>
-              <span class="app-nav__desc">关键词</span>
+              <span class="app-nav__label">雷达</span>
+              <span class="app-nav__desc">影片能力</span>
+            </router-link>
+            <router-link to="/sankey" class="app-nav__item" active-class="is-active">
+              <span class="app-nav__dot" aria-hidden="true"></span>
+              <span class="app-nav__label">桑基</span>
+              <span class="app-nav__desc">流量链路</span>
+            </router-link>
+            <router-link to="/treemap" class="app-nav__item" active-class="is-active">
+              <span class="app-nav__dot" aria-hidden="true"></span>
+              <span class="app-nav__label">矩阵树</span>
+              <span class="app-nav__desc">类型×地区</span>
+            </router-link>
+            <router-link to="/wordcloud" class="app-nav__item" active-class="is-active">
+              <span class="app-nav__dot" aria-hidden="true"></span>
+              <span class="app-nav__label">词云</span>
+              <span class="app-nav__desc">词频可视化</span>
+            </router-link>
+            <router-link to="/gauge" class="app-nav__item" active-class="is-active">
+              <span class="app-nav__dot" aria-hidden="true"></span>
+              <span class="app-nav__label">仪表盘</span>
+              <span class="app-nav__desc">核心指针</span>
+            </router-link>
+            <router-link to="/scatter3d" class="app-nav__item" active-class="is-active">
+              <span class="app-nav__dot" aria-hidden="true"></span>
+              <span class="app-nav__label">3D 散点</span>
+              <span class="app-nav__desc">三维矩阵</span>
+            </router-link>
+            <router-link to="/funnel" class="app-nav__item" active-class="is-active">
+              <span class="app-nav__dot" aria-hidden="true"></span>
+              <span class="app-nav__label">漏斗</span>
+              <span class="app-nav__desc">评分分层</span>
+            </router-link>
+            <router-link to="/calendar" class="app-nav__item" active-class="is-active">
+              <span class="app-nav__dot" aria-hidden="true"></span>
+              <span class="app-nav__label">日历热力</span>
+              <span class="app-nav__desc">年度分布</span>
+            </router-link>
+            <router-link to="/network" class="app-nav__item" active-class="is-active">
+              <span class="app-nav__dot" aria-hidden="true"></span>
+              <span class="app-nav__label">关系网络</span>
+              <span class="app-nav__desc">合作图</span>
+            </router-link>
+            <router-link to="/map" class="app-nav__item" active-class="is-active">
+              <span class="app-nav__dot" aria-hidden="true"></span>
+              <span class="app-nav__label">世界地图</span>
+              <span class="app-nav__desc">国家分布</span>
             </router-link>
           </nav>
           <div class="app-sidebar__foot">
@@ -99,23 +154,24 @@ const { start, done } = useNProgress();
 
 const isMac = computed(() => {
   if (typeof navigator === 'undefined') return false;
-  return /Mac|iPhone|iPad/i.test(navigator.platform);
+  return /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '');
 });
 
-router.beforeEach(() => { start() });
-router.afterEach(() => { done() });
-
-function onKey(e) {
-  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-    e.preventDefault();
-    openPalette();
-  }
-}
-onMounted(() => window.addEventListener('keydown', onKey));
-onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
+let removeAfterEach = null;
+let removeBeforeEach = null;
+onMounted(() => {
+  removeBeforeEach = router.beforeEach((to, from) => {
+    if (to.fullPath !== from.fullPath) start();
+  });
+  removeAfterEach = router.afterEach(() => done());
+});
+onBeforeUnmount(() => {
+  if (removeAfterEach) removeAfterEach();
+  if (removeBeforeEach) removeBeforeEach();
+});
 </script>
 
-<style scoped>
+<style>
 .app-shell {
   min-height: 100vh;
   display: flex;
@@ -127,7 +183,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   background-attachment: fixed;
 }
 
-/* 顶部精简栏 */
 .app-top {
   position: sticky;
   top: 0;
@@ -136,6 +191,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   backdrop-filter: saturate(180%) blur(14px);
   background: color-mix(in srgb, var(--c-bg) 72%, transparent);
 }
+
 .app-top__inner {
   display: flex;
   align-items: center;
@@ -143,28 +199,33 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   gap: 16px;
   padding: 10px 24px;
 }
+
 .app-top__brand {
   display: inline-flex;
   align-items: baseline;
   gap: 10px;
 }
+
 .app-top__name {
   font-size: 14px;
   font-weight: 700;
   color: var(--c-text);
   letter-spacing: 0.5px;
 }
+
 .app-top__sub {
   font-size: 10px;
   color: var(--c-muted);
   letter-spacing: 2px;
 }
+
 .app-top__actions {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-left: auto;
 }
+
 .app-top__search {
   display: inline-flex;
   align-items: center;
@@ -178,10 +239,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   cursor: pointer;
   transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out);
 }
+
 .app-top__search:hover {
   color: var(--c-text);
   border-color: var(--c-primary);
 }
+
 .app-top__search kbd {
   font-family: inherit;
   font-size: 10px;
@@ -192,6 +255,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   border: 1px solid var(--c-border);
   margin-left: 4px;
 }
+
 .app-top__iconbtn {
   width: 34px;
   height: 34px;
@@ -205,137 +269,202 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   cursor: pointer;
   transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out);
 }
+
 .app-top__iconbtn:hover {
   color: var(--c-primary);
   border-color: var(--c-primary);
   background: var(--c-primary-tint);
 }
 
-/* 主体：左栏 + 内容 */
 .app-body {
   flex: 1;
   display: flex;
-  align-items: stretch;
   gap: 0;
 }
 
-/* 左侧导航栏 */
 .app-sidebar {
   width: 220px;
   flex-shrink: 0;
-  border-right: 1px solid var(--c-border);
-  background: color-mix(in srgb, var(--c-bg) 60%, transparent);
   position: sticky;
-  top: 56px;
-  align-self: flex-start;
-  height: calc(100vh - 56px);
+  top: calc(var(--fs-md) * 2 + 20px);
+  height: calc(100vh - calc(var(--fs-md) * 2 + 20px));
+  border-right: 1px solid var(--c-border);
+  background: color-mix(in srgb, var(--c-bg) 90%, transparent);
+  backdrop-filter: saturate(180%) blur(8px);
+}
+
+.app-sidebar__inner {
+  padding: 8px 0;
+  height: 100%;
   overflow-y: auto;
 }
-.app-sidebar__inner {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  height: 100%;
-  padding: 14px 12px;
-  gap: 16px;
-}
+
 .app-nav {
+  list-style: none;
+  padding: 0;
+  margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
 }
+
 .app-nav__item {
-  display: grid;
-  grid-template-columns: 8px 1fr auto;
+  display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  font-size: var(--fs-md);
+  padding: 9px 12px;
   color: var(--c-text-soft);
   text-decoration: none;
   transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+  border-radius: 0 var(--r) var(--r) 0;
+  margin-left: 4px;
 }
-.app-nav__dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--c-border-strong);
-  transition: background var(--t-fast) var(--ease-out), transform var(--t-fast) var(--ease-out);
-}
-.app-nav__label {
-  font-weight: 500;
-  color: inherit;
-}
-.app-nav__desc {
-  font-size: 11px;
-  color: var(--c-muted);
-}
+
 .app-nav__item:hover {
   background: var(--c-surface-2);
   color: var(--c-text);
 }
-.app-nav__item:hover .app-nav__dot {
-  background: var(--c-primary);
-}
+
 .app-nav__item.is-active {
   background: var(--c-primary-tint);
   color: var(--c-primary);
 }
+
+.app-nav__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--c-muted);
+  flex-shrink: 0;
+}
+
 .app-nav__item.is-active .app-nav__dot {
   background: var(--c-primary);
-  transform: scale(1.4);
 }
+
+.app-nav__label {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+.app-nav__desc {
+  font-size: var(--fs-xs);
+  color: var(--c-muted);
+  margin-left: auto;
+}
+
+.app-nav__group-title {
+  font-size: 10px;
+  color: var(--c-muted);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 14px 12px 4px;
+  font-weight: 600;
+}
+
+.app-nav__group-title:first-child {
+  padding-top: 4px;
+}
+
 .app-sidebar__foot {
-  padding-top: 12px;
-  border-top: 1px dashed var(--c-border);
+  padding: 12px;
+  border-top: 1px solid var(--c-border);
+  margin-top: 8px;
 }
+
 .app-sidebar__tip {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--c-muted);
 }
+
 .app-sidebar__tip kbd {
   font-family: inherit;
-  font-size: 10px;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: var(--c-surface-2);
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--c-surface);
   color: var(--c-muted);
   border: 1px solid var(--c-border);
+  margin: 0 2px;
 }
 
-/* 主内容 */
 .app-main {
   flex: 1;
-  min-width: 0;
-  padding: 16px 24px 48px;
+  padding: 16px 24px 32px;
+  overflow-y: auto;
 }
 
-/* 页面过渡 */
-.page-enter-active, .page-leave-active {
+.page-enter-active,
+.page-leave-active {
   transition: opacity var(--t) var(--ease-out), transform var(--t) var(--ease-out);
 }
-.page-enter-from { opacity: 0; transform: translateY(6px); }
-.page-leave-to   { opacity: 0; transform: translateY(-6px); }
 
-@media (max-width: 900px) {
-  .app-sidebar { width: 180px; }
-  .app-nav__desc { display: none; }
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
 }
-@media (max-width: 720px) {
-  .app-body { flex-direction: column; }
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+@media (max-width: 1000px) {
   .app-sidebar {
-    position: static;
     width: 100%;
     height: auto;
+    position: relative;
+    top: auto;
     border-right: none;
     border-bottom: 1px solid var(--c-border);
   }
-  .app-sidebar__inner { padding: 8px 12px; }
-  .app-nav { flex-direction: row; overflow-x: auto; }
-  .app-nav__item { white-space: nowrap; padding: 8px 12px; }
-  .app-nav__dot, .app-sidebar__foot { display: none; }
-  .app-top__search span { display: none; }
-  .app-main { padding: 12px 14px 32px; }
+
+  .app-body {
+    flex-direction: column;
+  }
+
+  .app-sidebar__inner {
+    padding: 8px 12px;
+    overflow-y: visible;
+  }
+
+  .app-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 4px;
+  }
+
+  .app-nav__group-title {
+    display: none;
+  }
+
+  .app-nav__item {
+    white-space: nowrap;
+    padding: 8px 12px;
+    margin-left: 0;
+    border-radius: var(--r-sm);
+  }
+
+  .app-nav__desc,
+  .app-nav__dot {
+    display: none;
+  }
+
+  .app-sidebar__foot {
+    display: none;
+  }
+
+  .app-main {
+    padding: 12px 14px 32px;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-top__search span {
+    display: none;
+  }
+
+  .app-top__inner {
+    padding: 10px 14px;
+  }
 }
 </style>

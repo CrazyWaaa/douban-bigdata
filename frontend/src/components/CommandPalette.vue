@@ -1,92 +1,101 @@
-<template>
-  <transition name="cmdk">
-    <div v-if="isOpen" class="cmdk-mask" @click.self="close" role="dialog" aria-modal="true" aria-label="全局搜索">
-      <div class="cmdk">
-        <div class="cmdk__head">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="11" cy="11" r="7"/>
-            <path d="M21 21l-4.3-4.3"/>
-          </svg>
-          <input
-            ref="inputEl"
-            v-model="kw"
-            type="text"
-            placeholder="搜索影片 / 跳转页面…"
-            @keydown.down.prevent="move(1)"
-            @keydown.up.prevent="move(-1)"
-            @keydown.enter.prevent="commit"
-            @keydown.esc.prevent="close"
-          />
-          <kbd>ESC</kbd>
-        </div>
+﻿<template>
+  <Teleport to="body">
+    <transition name="cmdk">
+      <div v-if="isOpen" class="cmdk-mask" @click.self="close">
+        <div class="cmdk" @click.stop>
+          <div class="cmdk__head">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>
+            </svg>
+            <input
+              ref="inputEl"
+              v-model="kw"
+              type="text"
+              placeholder="搜索电影 / 跳转页面 / 命令…"
+              @keydown.down.prevent="move(1)"
+              @keydown.up.prevent="move(-1)"
+              @keydown.enter.prevent="commit"
+              @keydown.esc="close"
+            />
+            <kbd>ESC</kbd>
+          </div>
+          <div class="cmdk__body">
+            <div v-if="!kw" class="cmdk__section-title">快捷跳转</div>
+            <ul v-if="!kw" class="cmdk__list">
+              <li
+                v-for="(it, i) in quickLinks"
+                :key="it.path"
+                :class="{ 'is-active': i === active }"
+                @mouseenter="active = i"
+                @click="goPath(it.path)"
+              >
+                <span class="cmdk__rank">{{ i + 1 }}</span>
+                <span class="cmdk__title">{{ it.label }}</span>
+                <span class="cmdk__meta">{{ it.hint }}</span>
+              </li>
+            </ul>
 
-        <div class="cmdk__body" v-if="kw">
-          <div v-if="loading" class="cmdk__hint">搜索中…</div>
-          <div v-else-if="!results.length" class="cmdk__hint">没有匹配的影片</div>
-          <ul v-else class="cmdk__list">
-            <li
-              v-for="(m, i) in results.slice(0, 8)"
-              :key="m.douban_id"
-              :class="{ 'is-active': i === active }"
-              @mouseenter="active = i"
-              @click="goMovie(m.douban_id)"
-            >
-              <span class="cmdk__rank">{{ i + 1 }}</span>
-              <span class="cmdk__title">{{ m.title }}</span>
-              <span class="cmdk__meta">{{ m.director || m.actors?.split('/')[0] || '' }}<span v-if="m.year"> · {{ m.year }}</span></span>
-              <span class="cmdk__rating">{{ m.rating?.toFixed?.(1) ?? '-' }}</span>
-            </li>
-          </ul>
-        </div>
-
-        <div class="cmdk__body" v-else>
-          <div class="cmdk__section-title">快速跳转</div>
-          <ul class="cmdk__list">
-            <li
-              v-for="(it, i) in quickLinks"
-              :key="it.path"
-              :class="{ 'is-active': i === active }"
-              @mouseenter="active = i"
-              @click="goPath(it.path)"
-            >
-              <span class="cmdk__rank">{{ i + 1 }}</span>
-              <span class="cmdk__title">{{ it.label }}</span>
-              <span class="cmdk__meta">{{ it.hint }}</span>
-            </li>
-          </ul>
-        </div>
-
-        <div class="cmdk__foot">
-          <span><kbd>↑</kbd><kbd>↓</kbd> 移动</span>
-          <span><kbd>↵</kbd> 打开</span>
-          <span><kbd>ESC</kbd> 关闭</span>
+            <div v-if="kw" class="cmdk__section-title">
+              搜索结果<span v-if="loading"> · 加载中</span>
+            </div>
+            <ul v-if="kw && results.length" class="cmdk__list">
+              <li
+                v-for="(m, i) in results.slice(0, 8)"
+                :key="m.douban_id"
+                :class="{ 'is-active': i === active }"
+                @mouseenter="active = i"
+                @click="goMovie(m.douban_id)"
+              >
+                <span class="cmdk__rank">★</span>
+                <span class="cmdk__title" v-html="highlight(m.title)"></span>
+                <span class="cmdk__meta">{{ m.year }} · {{ (m.director || '').split('/')[0] }}</span>
+                <span class="cmdk__rating">{{ m.rating?.toFixed?.(1) ?? '-' }}</span>
+              </li>
+            </ul>
+            <div v-else-if="kw && !loading" class="cmdk__hint">无匹配影片,按 <kbd>↵</kbd> 进入搜索页</div>
+          </div>
+          <div class="cmdk__foot">
+            <span><kbd>↑</kbd><kbd>↓</kbd> 移动</span>
+            <span><kbd>↵</kbd> 打开</span>
+            <span><kbd>ESC</kbd> 关闭</span>
+          </div>
         </div>
       </div>
-    </div>
-  </transition>
+    </transition>
+  </Teleport>
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from 'vue';
-import { useRouter } from 'vue-router';
-import { useCommandPalette } from '../composables/useCommandPalette';
-import { api } from '../api';
+import { ref, watch, nextTick } from "vue";
+import { useRouter } from "vue-router";
+import { useCommandPalette } from "../composables/useCommandPalette";
+import { api } from "../api";
 
 const router = useRouter();
 const { isOpen, close } = useCommandPalette();
 const inputEl = ref(null);
-const kw = ref('');
+const kw = ref("");
 const results = ref([]);
 const loading = ref(false);
 const active = ref(0);
 
 const quickLinks = [
-  { label: '数据大屏', hint: 'Dashboard', path: '/' },
-  { label: '高分榜单', hint: 'Top 列表', path: '/top' },
-  { label: '类型分布', hint: 'Genre', path: '/genre' },
-  { label: '地区分布', hint: 'Country', path: '/country' },
-  { label: '年代趋势', hint: 'Year', path: '/year' },
-  { label: '搜索影片', hint: 'Search', path: '/search' },
+  { label: "数据大屏",     hint: "Dashboard",       path: "/" },
+  { label: "高分榜单",     hint: "Top 列表",        path: "/top" },
+  { label: "类型分布",     hint: "Genre",           path: "/genre" },
+  { label: "地区分布",     hint: "Country",         path: "/country" },
+  { label: "年代趋势",     hint: "Year",            path: "/year" },
+  { label: "搜索影片",     hint: "Search",          path: "/search" },
+  { label: "影片雷达",     hint: "Radar",           path: "/radar" },
+  { label: "流量桑基",     hint: "Sankey",          path: "/sankey" },
+  { label: "类型×地区 矩阵", hint: "Treemap",        path: "/treemap" },
+  { label: "词云",         hint: "WordCloud",       path: "/wordcloud" },
+  { label: "品质仪表盘",   hint: "Gauge",           path: "/gauge" },
+  { label: "3D 散点",      hint: "Scatter3D",       path: "/scatter3d" },
+  { label: "评分漏斗",     hint: "Funnel",          path: "/funnel" },
+  { label: "日历热力",     hint: "Calendar",        path: "/calendar" },
+  { label: "合作网络",     hint: "Network",         path: "/network" },
+  { label: "世界地图",     hint: "Map",             path: "/map" },
 ];
 
 let debounceTimer = 0;
@@ -111,7 +120,7 @@ watch(kw, onKwChange);
 
 watch(isOpen, async (open) => {
   if (open) {
-    kw.value = '';
+    kw.value = "";
     results.value = [];
     active.value = 0;
     await nextTick();
@@ -128,10 +137,20 @@ function move(d) {
 function commit() {
   if (kw.value) {
     if (results.value[active.value]) goMovie(results.value[active.value].douban_id);
-    else goPath('/search', { q: kw.value });
+    else goPath("/search", { q: kw.value });
   } else {
     if (quickLinks[active.value]) goPath(quickLinks[active.value].path);
   }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"'']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "''": "&#39;" }[c]));
+}
+function highlight(text) {
+  if (!text || !kw.value) return escapeHtml(text);
+  const safe = escapeHtml(text);
+  const q = escapeHtml(kw.value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return safe.replace(new RegExp(q, "gi"), m => `<mark>${m}</mark>`);
 }
 
 function goMovie(id) { close(); router.push(`/movie/${id}`); }
@@ -174,6 +193,13 @@ function goPath(p, q) { close(); router.push({ path: p, query: q || undefined })
 }
 .cmdk__body { max-height: 50vh; overflow-y: auto; padding: 6px; }
 .cmdk__hint { padding: 24px 12px; text-align: center; color: var(--c-muted); font-size: var(--fs-sm); }
+.cmdk__hint kbd {
+  font-family: inherit; font-size: 10px;
+  padding: 1px 5px; border-radius: 3px;
+  background: var(--c-surface-2); color: var(--c-muted);
+  border: 1px solid var(--c-border);
+  margin: 0 2px;
+}
 .cmdk__section-title {
   padding: 8px 12px 4px;
   font-size: 10px; color: var(--c-muted);
@@ -193,6 +219,7 @@ function goPath(p, q) { close(); router.push({ path: p, query: q || undefined })
 }
 .cmdk__list li.is-active .cmdk__rank { color: var(--c-primary); }
 .cmdk__title { flex: 1; min-width: 0; font-size: var(--fs-md); color: var(--c-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmdk__title :deep(mark) { background: color-mix(in srgb, var(--c-warning) 35%, transparent); color: var(--c-text); border-radius: 3px; padding: 0 2px; }
 .cmdk__meta { font-size: var(--fs-sm); color: var(--c-muted); max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cmdk__rating { font-weight: 700; color: var(--c-primary); font-size: var(--fs-md); min-width: 30px; text-align: right; }
 .cmdk__foot {
