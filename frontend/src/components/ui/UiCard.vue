@@ -34,6 +34,8 @@ defineProps({
   border: 1px solid var(--c-border);
   border-radius: var(--r);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   transition: transform var(--t) var(--ease-out),
               border-color var(--t) var(--ease-out),
               box-shadow var(--t) var(--ease-out);
@@ -54,13 +56,15 @@ defineProps({
 .ui-card.is-glow:hover::before { opacity: 1; }
 .ui-card__head {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 16px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--c-border);
   background: linear-gradient(180deg, var(--c-surface-2) 0%, transparent 100%);
+  flex: 0 0 auto;
 }
 .ui-card__title { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .ui-card__title h3 { margin: 0; font-size: var(--fs-md); font-weight: 600; color: var(--c-text); }
 .ui-card__icon { font-size: 16px; line-height: 1; }
 .ui-card__actions { display: flex; gap: 6px; align-items: center; }
-.ui-card__body { padding: 16px; }
+.ui-card__body { padding: 12px 14px; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.ui-card__body > * { min-width: 0; }
 </style>

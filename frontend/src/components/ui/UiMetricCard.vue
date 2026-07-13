@@ -47,7 +47,7 @@ const display = computed(() => {
   background: var(--c-surface);
   border: 1px solid var(--c-border);
   border-radius: var(--r);
-  padding: 14px 16px;
+  padding: 12px 14px;
   transition: transform var(--t) var(--ease-out), border-color var(--t) var(--ease-out), box-shadow var(--t) var(--ease-out);
 }
 .ui-metric:hover { transform: translateY(-2px); border-color: var(--c-primary); box-shadow: var(--shadow); }
