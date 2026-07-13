@@ -55,3 +55,6 @@ data/raw/_debug/
 
 # Keep project seed SQL;临时清洗产物 douban_clean.sql 已忽略
 !docs/douban.sql
+!data/
+data/*
+!data/douban.sql
