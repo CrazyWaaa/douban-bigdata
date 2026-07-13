@@ -1,17 +1,17 @@
 /*
  Navicat Premium Data Transfer
 
- Source Server         : Recode
+ Source Server         : dokcer_mysql
  Source Server Type    : MySQL
- Source Server Version : 80037 (8.0.37)
- Source Host           : localhost:3306
+ Source Server Version : 80046 (8.0.46)
+ Source Host           : localhost:33306
  Source Schema         : douban
 
  Target Server Type    : MySQL
- Target Server Version : 80037 (8.0.37)
+ Target Server Version : 80046 (8.0.46)
  File Encoding         : 65001
 
- Date: 12/07/2026 16:22:01
+ Date: 13/07/2026 16:19:50
 */
 
 SET NAMES utf8mb4;
@@ -26,7 +26,7 @@ CREATE TABLE `agg_country`  (
   `movie_count` int NULL DEFAULT NULL,
   `avg_rating` decimal(3, 2) NULL DEFAULT NULL,
   PRIMARY KEY (`country`) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of agg_country
@@ -107,7 +107,7 @@ CREATE TABLE `agg_genre`  (
   `movie_count` int NULL DEFAULT NULL,
   `avg_rating` decimal(3, 2) NULL DEFAULT NULL,
   PRIMARY KEY (`genre`) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of agg_genre
@@ -151,7 +151,7 @@ CREATE TABLE `agg_year`  (
   `movie_count` int NULL DEFAULT NULL,
   `avg_rating` decimal(3, 2) NULL DEFAULT NULL,
   PRIMARY KEY (`year`) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of agg_year
@@ -224,7 +224,7 @@ CREATE TABLE `dim_country`  (
   `name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `name`(`name` ASC) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of dim_country
@@ -239,7 +239,7 @@ CREATE TABLE `dim_genre`  (
   `name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `name`(`name` ASC) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of dim_genre
@@ -252,7 +252,7 @@ DROP TABLE IF EXISTS `dim_year`;
 CREATE TABLE `dim_year`  (
   `year` smallint NOT NULL,
   PRIMARY KEY (`year`) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of dim_year
@@ -297,7 +297,7 @@ CREATE TABLE `movie`  (
   INDEX `idx_rating`(`rating` ASC) USING BTREE,
   INDEX `idx_country`(`country` ASC) USING BTREE,
   INDEX `idx_runtime`(`runtime_minutes` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 551 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 551 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of movie

@@ -335,3 +335,69 @@ SELECT INDEX_NAME FROM INFORMATION_SCHEMA.STATISTICS
 - [ ] CI：lint / build / 接口冒烟，PR 自动跑
 - [ ] 架构图与完整数据字典文档
 
+---
+
+## 数据更新（补抓详情页）
+
+当 movie 表中部分电影的详情页字段（`summary` / `runtime_minutes` / `languages` /
+`imdb_id` 等）缺失时，可以用以下流程补抓，**无需重建表，后端无感刷新**：
+
+### 一次性补抓流程
+
+```bash
+# 1. 补抓详情字段写到 data/raw/movies.jsonl（约 30-50 分钟）
+python scripts/enrich_all_details.py
+
+# 2. Dry-run：看 ETL 会写什么，但不真写库
+bash scripts/update_db.sh
+
+# 3. 写库前先备份（推荐）
+bash scripts/update_db.sh --backup
+
+# 4. 确认后真正写库（UPSERT 模式，幂等）
+bash scripts/update_db.sh --write
+```
+
+### 工作原理
+
+- `enrich_all_details.py` 从 MySQL `movie` 表读全部 `douban_id`，
+  对比已有 `data/raw/movies.jsonl` 中的记录，**只重抓详情字段不全的**。
+- 抓取结果合并写回 `data/raw/movies.jsonl`。
+- `update_db.sh` 触发 Docker 中的 Spark ETL（`etl` profile），
+  走 `INSERT ... ON DUPLICATE KEY UPDATE` 写回 MySQL，**保留 `created_at`、刷新其他字段**。
+
+### 高级用法
+
+```bash
+# 强制全量重抓（忽略 JSONL 已有记录）
+python scripts/enrich_all_details.py --force
+
+# 用代理（需要 proxies.txt 有可用代理）
+python scripts/enrich_all_details.py --proxy-file crawler/proxies.txt
+
+# 自定义 ID 列表（每行一个 douban_id）
+python scripts/enrich_all_details.py --ids-file data/raw/my_ids.txt
+
+# 只爬不合并写回 JSONL（调试用）
+python scripts/enrich_all_details.py --no-write
+```
+
+### 设计原则
+
+- **幂等**：可重复运行，结果一致
+- **断点**：JSONL 已存在的 ID 不会被覆盖（除非 `--force`）
+- **跳过阈值**：4 个关键字段（`summary`/`runtime_minutes`/`languages`/`imdb_id`）
+  任一为空即视为未抓详
+- **节流**：单 IP 默认 6-15 秒/条，配合 `curl_cffi` 模拟浏览器 TLS 指纹
+
+### 云端更新
+
+代码推送到 GitHub 后，在云服务器上：
+
+```bash
+cd /opt/douban-bigdata
+git pull
+docker compose up -d --build          # 代码有变更时
+bash scripts/update_db.sh --write     # 触发 ETL 写库
+```
+
