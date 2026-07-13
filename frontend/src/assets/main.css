@@ -157,3 +157,14 @@ a:hover { color: var(--c-primary-soft); }
 }
 .np-bar.show { transform: scaleX(0.85); opacity: 1; }
 .np-bar.done { transform: scaleX(1); opacity: 0; }
+
+/* ============== 导航分组标题 ============== */
+.app-nav__group-title {
+  font-size: 10px;
+  color: var(--c-muted);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 14px 12px 4px;
+  font-weight: 600;
+}
+.app-nav__group-title:first-child { padding-top: 4px; }

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <PageScaffold
     title="类型×地区 矩阵"
     subtitle="嵌套方块 = 影片数,点击方块可跳转到对应维度页"
@@ -52,6 +52,7 @@ import UiChartCard from '../components/ui/UiChartCard.vue'
 import { api } from '../api'
 import { buildTreemapOption } from '../echarts/options'
 import { useDrillNav } from '../composables/useDrillNav'
+import { splitMultiValue } from '../utils/movieFields'
 
 const { go: drill } = useDrillNav()
 const loading = ref(false)
@@ -106,15 +107,14 @@ async function load() {
       api.paged({ page: 1, size: 100, sort: 'rating', order: 'desc' }),
     ])
     const genres = genreList.status === 'fulfilled' ? (genreList.value?.data || []) : []
-    const countries = countryList.status === 'fulfilled' ? (countryList.value?.data || []) : []
-    const movies = detailList.status === 'fulfilled' ? (detailList.value?.data || []) : []
-    topGenres.value = genres.slice(0, 10)
+    const movies = detailList.status === 'fulfilled' ? (detailList.value?.items || []) : []
+    topGenres.value = genres.slice(0, 12)
 
     // 用 topRated 详情聚合 type × country
     const tmp = new Map()
     for (const m of movies) {
-      const gs = String(m.genre || '').split('/').map((s) => s.trim()).filter(Boolean)
-      const cs = String(m.country || '').split('/').map((s) => s.trim()).filter(Boolean)
+      const gs = splitMultiValue(m.genre)
+      const cs = splitMultiValue(m.country)
       for (const g of gs) {
         if (!tmp.has(g)) tmp.set(g, new Map())
         for (const c of cs) {

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <Teleport to="body">
     <transition name="cmdk">
       <div v-if="isOpen" class="cmdk-mask" @click.self="close">
@@ -91,7 +91,6 @@ const quickLinks = [
   { label: "类型×地区 矩阵", hint: "Treemap",        path: "/treemap" },
   { label: "词云",         hint: "WordCloud",       path: "/wordcloud" },
   { label: "品质仪表盘",   hint: "Gauge",           path: "/gauge" },
-  { label: "3D 散点",      hint: "Scatter3D",       path: "/scatter3d" },
   { label: "评分漏斗",     hint: "Funnel",          path: "/funnel" },
   { label: "日历热力",     hint: "Calendar",        path: "/calendar" },
   { label: "合作网络",     hint: "Network",         path: "/network" },

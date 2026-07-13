@@ -93,11 +93,6 @@
               <span class="app-nav__label">仪表盘</span>
               <span class="app-nav__desc">核心指针</span>
             </router-link>
-            <router-link to="/scatter3d" class="app-nav__item" active-class="is-active">
-              <span class="app-nav__dot" aria-hidden="true"></span>
-              <span class="app-nav__label">3D 散点</span>
-              <span class="app-nav__desc">三维矩阵</span>
-            </router-link>
             <router-link to="/funnel" class="app-nav__item" active-class="is-active">
               <span class="app-nav__dot" aria-hidden="true"></span>
               <span class="app-nav__label">漏斗</span>
