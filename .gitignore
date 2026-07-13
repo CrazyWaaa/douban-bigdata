@@ -58,3 +58,6 @@ data/raw/_debug/
 !data/
 data/*
 !data/douban.sql
+
+# Local test inputs
+test_ids.txt
