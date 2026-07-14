@@ -1,4 +1,4 @@
-﻿import { ref, watch } from "vue";
+import { ref, watch } from "vue";
 
 const STORAGE_KEY = "douban-theme";
 const theme = ref(

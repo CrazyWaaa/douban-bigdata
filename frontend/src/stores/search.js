@@ -1,28 +1,41 @@
 import { defineStore } from 'pinia'
 import { api } from '../api'
+import { invalidate } from '../composables/useApiQuery'
 
-/** 全局搜索 store:防抖由视图层控制,这里只管最近一次结果。 */
+/**
+ * 搜索 store - 单一请求单飞,失败/空字符串都收敛到统一状态
+ */
 export const useSearchStore = defineStore('search', {
   state: () => ({
     q: '',
     results: [],
     loading: false,
     error: '',
+    took: 0,
   }),
   actions: {
     async run(q) {
-      this.q = q
-      this.error = ''
-      if (!q || !q.trim()) {
+      const norm = String(q || '').trim()
+      this.q = norm
+      if (!norm) {
         this.results = []
+        this.error = ''
+        this.loading = false
+        this.took = 0
         return
       }
       this.loading = true
+      this.error = ''
+      const start = performance.now()
       try {
-        this.results = (await api.search(q.trim(), 30))?.data || []
+        const data = await api.search(norm, 50)
+        this.results = Array.isArray(data) ? data : []
+        this.took = Math.round(performance.now() - start)
+        invalidate('search:')
       } catch (e) {
-        this.error = e?.message || String(e)
+        this.error = e?.response?.data?.message || e?.message || String(e)
         this.results = []
+        this.took = Math.round(performance.now() - start)
       } finally {
         this.loading = false
       }

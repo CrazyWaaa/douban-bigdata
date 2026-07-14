@@ -1,6 +1,16 @@
 <template>
-  <div class="movie-page" v-if="data">
-    <section class="hero">
+  <transition name="movie" mode="out-in">
+    <div v-if="loading" key="loading" class="movie-loading fade-up" aria-live="polite" aria-busy="true">
+      <div class="movie-loading__inner">
+        <span class="movie-loading__spinner" aria-hidden="true"></span>
+        <span class="movie-loading__text">正在载入影片…</span>
+      </div>
+    </div>
+
+    <UiEmptyState v-else-if="error" key="error" :title="error" />
+
+    <div v-else-if="data" key="data" class="movie-page">
+      <section class="hero">
       <div class="hero__bg" :style="heroBgStyle"></div>
       <div class="hero__overlay"></div>
       <div class="hero__inner fade-up">
@@ -14,15 +24,15 @@
             @error="onImgError"
           />
           <div class="hero__info">
-            <h1 class="hero__title">{{ data.title }}
-              <span v-if="data.year" class="hero__year">({{ data.year }})</span>
+            <h1 class="hero__title">{{ data.title || '-' }}
+              <span v-if="data.year" class="hero__year">({{ data.year || '-' }})</span>
             </h1>
             <div class="hero__meta">
               <span v-if="data.director">{{ data.director.split('/')[0] }} 导演</span>
               <span v-for="(g, gi) in (data.genre || '').split('/').slice(0, 3).filter(x => x.trim())" :key="gi" class="hero__tag">{{ g.trim() }}</span>
               <span v-if="data.country">{{ data.country.split('/')[0] }}</span>
             </div>
-            <div v-if="data.quote" class="hero__quote">"{{ data.quote }}"</div>
+            <div v-if="data.quote" class="hero__quote">"{{ data.quote || '-' }}"</div>
           </div>
           <div class="hero__rating" v-if="data.rating">
             <svg width="120" height="120" viewBox="0 0 120 120" class="rating-ring">
@@ -46,12 +56,12 @@
     <div class="content">
       <div class="content__grid">
         <div class="content__main">
-          <UiCard title="剧情简介" class="fade-up" style="animation-delay: 80ms">
-            <p v-if="data.summary" class="summary">{{ data.summary }}</p>
+          <UiCard title="剧情简介" class="fade-up-stagger" style="--i: 1">
+            <p v-if="data.summary" class="summary">{{ data.summary || '-' }}</p>
             <UiEmptyState v-else title="暂无简介" />
           </UiCard>
 
-          <UiCard title="演职员" class="fade-up" style="animation-delay: 140ms">
+          <UiCard title="演职员" class="fade-up-stagger" style="--i: 2">
             <div class="staff">
               <div class="staff__row">
                 <span class="staff__label">导演</span>
@@ -63,7 +73,7 @@
               </div>
               <div class="staff__row" v-if="data.languages">
                 <span class="staff__label">语言</span>
-                <span class="staff__val">{{ data.languages }}</span>
+                <span class="staff__val">{{ data.languages || '-' }}</span>
               </div>
               <div class="staff__row" v-if="data.runtime || data.runtime_minutes">
                 <span class="staff__label">片长</span>
@@ -71,24 +81,24 @@
               </div>
               <div class="staff__row" v-if="data.release_date">
                 <span class="staff__label">上映</span>
-                <span class="staff__val">{{ data.release_date }}</span>
+                <span class="staff__val">{{ data.release_date || '-' }}</span>
               </div>
             </div>
           </UiCard>
 
-          <UiCard v-if="ratingStarsArray && ratingStarsArray.length" title="评分构成" class="fade-up" style="animation-delay: 200ms">
+          <UiCard v-if="ratingStarsArray && ratingStarsArray.length" title="评分构成" class="fade-up-stagger" style="--i: 3">
             <ul class="stars-list">
               <li v-for="(s, idx) in ratingStarsArray" :key="idx">
                 <span class="stars-list__label">{{ idx + 1 }} 星</span>
                 <div class="stars-list__bar">
                   <div class="stars-list__fill" :style="{ width: s + '%' }"></div>
                 </div>
-                <span class="stars-list__pct">{{ s }}%</span>
+                <span class="stars-list__pct">{{ s || '-' }}%</span>
               </li>
             </ul>
           </UiCard>
 
-          <UiCard v-if="relatedPics && relatedPics.length" title="剧照" class="fade-up" style="animation-delay: 260ms">
+          <UiCard v-if="relatedPics && relatedPics.length" title="剧照" class="fade-up-stagger" style="--i: 4">
             <div class="pics-grid">
               <img v-for="(p, i) in relatedPics" :key="i" :src="imgSrc(p)" :alt="'pic-' + i" referrerpolicy="no-referrer" loading="lazy" @error="onImgError" />
             </div>
@@ -96,20 +106,20 @@
         </div>
 
         <div class="content__side">
-          <UiCard v-if="neighbors.prev || neighbors.next" title="榜单导航" class="fade-up" style="animation-delay: 60ms">
+          <UiCard v-if="neighbors.prev || neighbors.next" title="榜单导航" class="fade-up-stagger" style="--i: 1">
             <div class="neighbors">
               <router-link v-if="neighbors.prev" class="neighbor" :to="'/movie/' + neighbors.prev.douban_id">
                 <span class="muted">上一部</span>
-                <span class="neighbor__title">{{ neighbors.prev.title }}</span>
+                <span class="neighbor__title">{{ neighbors.prev.title || '-' }}</span>
               </router-link>
               <router-link v-if="neighbors.next" class="neighbor neighbor--right" :to="'/movie/' + neighbors.next.douban_id">
                 <span class="muted">下一部</span>
-                <span class="neighbor__title">{{ neighbors.next.title }}</span>
+                <span class="neighbor__title">{{ neighbors.next.title || '-' }}</span>
               </router-link>
             </div>
           </UiCard>
 
-          <UiCard title="相关推荐" class="fade-up" style="animation-delay: 120ms">
+          <UiCard title="相关推荐" class="fade-up-stagger" style="--i: 2">
             <div v-if="related.length" class="related-grid">
               <router-link
                 v-for="(m, i) in related"
@@ -121,10 +131,10 @@
                 <img v-if="m.poster_url" :src="imgSrc(m.poster_url)" :alt="m.title" referrerpolicy="no-referrer" loading="lazy" @error="onImgError" />
                 <div v-else class="related-card__ph">NO IMAGE</div>
                 <div class="related-card__info">
-                  <div class="related-card__title">{{ m.title }}</div>
+                  <div class="related-card__title">{{ m.title || '-' }}</div>
                   <div class="related-card__meta">
                     <span class="related-card__rating">{{ m.rating?.toFixed?.(1) ?? '-' }}</span>
-                    <span class="muted">{{ m.year }}</span>
+                    <span class="muted">{{ m.year || '-' }}</span>
                   </div>
                 </div>
               </router-link>
@@ -135,14 +145,11 @@
       </div>
     </div>
   </div>
-  <UiEmptyState v-else-if="error" :title="error" />
-  <div v-else class="movie-loading">
-    <div class="spinner"></div>
-  </div>
+  </transition>
 </template>
 
 <script setup>
-import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useMoviesStore } from '../stores/movies';
 import UiCard from '../components/ui/UiCard.vue';
@@ -154,6 +161,7 @@ const data = ref(null);
 const related = ref([]);
 const neighbors = ref({});
 const error = ref('');
+const loading = ref(true);
 
 const ratingStarsArray = computed(() => {
   const raw = data.value?.rating_stars;
@@ -215,16 +223,30 @@ function formatCount(n) {
   return n.toLocaleString();
 }
 
-onMounted(async () => {
+async function load(id) {
+  loading.value = true;
+  error.value = '';
+  data.value = null;
+  related.value = [];
+  neighbors.value = {};
   try {
-    const detail = await moviesStore.fetchDetail(route.params.id);
-    data.value = detail;
-    related.value = await moviesStore.fetchRelated(route.params.id, 12);
-    neighbors.value = await moviesStore.fetchNeighbors(route.params.id);
+    const detail = await moviesStore.fetchDetail(id);
+    if (!detail) {
+      error.value = '未找到该影片';
+    } else {
+      data.value = detail;
+      related.value = await moviesStore.fetchRelated(id, 12);
+      neighbors.value = await moviesStore.fetchNeighbors(id);
+    }
   } catch (e) {
     error.value = '加载失败: ' + (e?.message || String(e));
+  } finally {
+    loading.value = false;
   }
-});
+}
+
+onMounted(() => load(route.params.id));
+watch(() => route.params.id, (newId) => { if (newId) load(newId); });
 </script>
 
 <style scoped>
@@ -324,12 +346,25 @@ onMounted(async () => {
 .related-card__meta { display: flex; justify-content: space-between; font-size: 11px; margin-top: 4px; }
 .related-card__rating { color: var(--c-primary); font-weight: 700; }
 
-.movie-loading { display: flex; align-items: center; justify-content: center; min-height: 60vh; }
-.spinner {
-  width: 32px; height: 32px; border-radius: 50%;
-  border: 3px solid var(--c-border); border-top-color: var(--c-primary);
+.movie-loading {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 60vh;
+}
+.movie-loading__inner {
+  display: flex; align-items: center; gap: 12px;
+  color: var(--c-muted); font-size: var(--fs-sm);
+}
+.movie-loading__spinner {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--c-border-strong); border-top-color: var(--c-primary);
   animation: spin .9s linear infinite;
 }
+
+/* <transition name="movie">：加载态切换 */
+.movie-enter-active { transition: opacity var(--t-page) var(--ease-out), transform var(--t-page) var(--ease-out); }
+.movie-leave-active { transition: opacity var(--t-fast) var(--ease-out); }
+.movie-enter-from   { opacity: 0; transform: translateY(12px); }
+.movie-leave-to     { opacity: 0; }
 
 @media (max-width: 1024px) {
   .content__grid { grid-template-columns: 1fr; }

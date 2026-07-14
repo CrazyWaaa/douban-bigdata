@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div ref="el" class="marquee" :class="{ 'is-paused': paused }">
     <div class="marquee__track" :style="trackStyle">
       <div class="marquee__group">

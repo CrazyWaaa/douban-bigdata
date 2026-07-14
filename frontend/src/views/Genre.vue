@@ -8,18 +8,18 @@
     </header>
     <div v-if="loading" class="muted fade-up">加载中…</div>
     <div v-else class="dim-grid">
-      <UiChartCard title="Top10 数量 + 均分" class="fade-up" style="animation-delay: 60ms">
+      <UiChartCard title="Top10 数量 + 均分" class="fade-up-stagger" style="--i: 1">
         <EChart :option="dualOption" height="320px" />
       </UiChartCard>
-      <UiChartCard title="数量占比饼图" class="fade-up" style="animation-delay: 120ms">
+      <UiChartCard title="数量占比饼图" class="fade-up-stagger" style="--i: 2">
         <EChart :option="pieOption" height="320px" />
       </UiChartCard>
-      <UiChartCard title="Top10 数量" class="fade-up dim-grid__full" style="animation-delay: 180ms">
+      <UiChartCard title="Top10 数量" class="fade-up-stagger dim-grid__full" style="--i: 3">
         <div class="dim-list">
           <div v-for="(it, i) in items.slice(0, 10)" :key="it.name" class="dim-list__row" :style="rowStyle(i)">
             <span class="dim-list__rank">{{ i + 1 }}</span>
-            <span class="dim-list__name">{{ it.name }}</span>
-            <span class="dim-list__count">{{ it.count }} 部</span>
+            <span class="dim-list__name">{{ it.name || '-' }}</span>
+            <span class="dim-list__count">{{ it.count || '-' }} 部</span>
             <span class="dim-list__rating">{{ Number(it.avg_rating).toFixed(1) }} 分</span>
           </div>
         </div>
@@ -43,7 +43,7 @@ const PIE_COLORS = ["#38bdf8", "#a78bfa", "#34d399", "#f472b6", "#f59e0b", "#22d
 onMounted(async () => {
   try {
     const data = await api.byAvg(DIM, 30);
-    items.value = data?.data || [];
+    items.value = Array.isArray(data) ? data : [];
     console.log("[Genre] dim=", DIM, "items.length=", items.value.length, "first=", items.value[0]);
   } catch (e) {
     console.error("[Genre] load failed", e);

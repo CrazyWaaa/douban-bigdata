@@ -35,8 +35,8 @@
                 :style="{ width: pctOf(g.count) + '%', background: barColor(i) }"
               ></div>
             </div>
-            <span class="treemap-list__name">{{ g.name }}</span>
-            <span class="treemap-list__count">{{ g.count }} 部</span>
+            <span class="treemap-list__name">{{ g.name || '-' }}</span>
+            <span class="treemap-list__count">{{ g.count || '-' }} 部</span>
           </li>
         </ul>
       </UiChartCard>
@@ -59,7 +59,7 @@ const loading = ref(false)
 const error = ref('')
 
 const topGenres = ref([])
-const countryOfGenre = ref(new Map()) // genre -> { country: count }
+const countryOfGenre = ref(new Map())
 
 const treemapData = computed(() => {
   return topGenres.value.map((g) => {
@@ -84,12 +84,10 @@ function barColor(i) {
 }
 
 function onItemClick(p) {
-  if (!p?.data?.name) return
-  // 数据节点:顶层 name=类型,二级 name=地区
-  if (p.treePathInfo?.length >= 2) {
-    // 二级(地区)
+  if (!p || !p.data || !p.data.name) return
+  if (p.treePathInfo && p.treePathInfo.length >= 2) {
     const country = p.data.name
-    const genre = p.treePathInfo[0]?.name
+    const genre = p.treePathInfo[0] && p.treePathInfo[0].name
     drill('country', country, { from: genre })
   } else {
     drill('genre', p.data.name)
@@ -101,16 +99,16 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const [genreList, countryList, detailList] = await Promise.allSettled([
+    const [genreRes, detailRes] = await Promise.allSettled([
       api.byGenre(),
-      api.byCountry(),
       api.paged({ page: 1, size: 100, sort: 'rating', order: 'desc' }),
     ])
-    const genres = genreList.status === 'fulfilled' ? (genreList.value?.data || []) : []
-    const movies = detailList.status === 'fulfilled' ? (detailList.value?.items || []) : []
+    // api.* 经 get() 已剥 data 外壳,直接是数组
+    const genres = (genreRes.status === 'fulfilled' && Array.isArray(genreRes.value)) ? genreRes.value : []
+    const movies = (detailRes.status === 'fulfilled' && detailRes.value && Array.isArray(detailRes.value.items)) ? detailRes.value.items : []
     topGenres.value = genres.slice(0, 12)
 
-    // 用 topRated 详情聚合 type × country
+    // 聚合 type × country
     const tmp = new Map()
     for (const m of movies) {
       const gs = splitMultiValue(m.genre)
@@ -125,7 +123,7 @@ async function load() {
     }
     countryOfGenre.value = tmp
   } catch (e) {
-    error.value = e?.message || String(e)
+    error.value = e.message || String(e)
   } finally {
     loading.value = false
   }

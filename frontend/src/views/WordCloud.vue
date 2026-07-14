@@ -3,7 +3,7 @@
     <template #actions>
       <div class="tab-bar">
         <button v-for="tab in tabs" :key="tab.key" :class="['tab-bar__btn', { 'is-active': active === tab.key }]" @click="active = tab.key">
-          {{ tab.label }}
+          {{ tab.label || '-' }}
         </button>
       </div>
     </template>
@@ -18,7 +18,7 @@
           :title="`${word.name}：${word.value} 次`"
           role="listitem"
           @click="openWord(word.name)"
-        >{{ word.name }}</button>
+        >{{ word.name || '-' }}</button>
       </div>
     </UiChartCard>
 
@@ -26,9 +26,9 @@
       <ul class="cloud-list">
         <li v-for="(item, index) in topList" :key="item.name" class="cloud-list__row" @click="openWord(item.name)">
           <span class="cloud-list__rank">{{ index + 1 }}</span>
-          <span class="cloud-list__name">{{ item.name }}</span>
+          <span class="cloud-list__name">{{ item.name || '-' }}</span>
           <div class="cloud-list__bar"><div class="cloud-list__fill" :style="{ width: percent(item.value) + '%' }"></div></div>
-          <span class="cloud-list__val">{{ item.value }}</span>
+          <span class="cloud-list__val">{{ item.value || '-' }}</span>
         </li>
       </ul>
     </UiChartCard>

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <PageScaffold
     title="评分漏斗"
     subtitle="按评分段分层,看头部精品的留存率"
@@ -11,11 +11,11 @@
     </template>
 
     <div class="funnel-grid">
-      <UiChartCard title="评分漏斗" sub="9+ → 8+ → 7+ → <7" class="fade-up">
+      <UiChartCard title="评分漏斗" sub="全部 → 7+ → 8+ → 9+" class="fade-up">
         <EChart :option="funnelOption" height="460px" />
       </UiChartCard>
 
-      <UiChartCard title="漏斗转化" class="fade-up" style="animation-delay: 80ms">
+      <UiChartCard title="漏斗转化" class="fade-up-stagger" style="--i: 1">
         <ul class="funnel-list">
           <li
             v-for="(b, i) in buckets"
@@ -25,23 +25,23 @@
             @click="drill('ratingBucket', b.label)"
           >
             <span class="funnel-list__dot" :style="{ background: COLORS[i] }"></span>
-            <span class="funnel-list__name">{{ b.label }}</span>
-            <span class="funnel-list__count">{{ b.count }} 部</span>
+            <span class="funnel-list__name">{{ b.label || '-' }}</span>
+            <span class="funnel-list__count">{{ b.count || '-' }} 部</span>
             <span class="funnel-list__rate">{{ rateOf(i) }}%</span>
           </li>
         </ul>
         <div class="funnel-summary">
           <div class="funnel-summary__cell">
-            <span class="muted">9+ 占比</span>
-            <span class="funnel-summary__num">{{ rateOf(0) }}%</span>
-          </div>
-          <div class="funnel-summary__cell">
-            <span class="muted">8+ 留存</span>
+            <span class="muted">7+ 占比</span>
             <span class="funnel-summary__num">{{ rateOf(1) }}%</span>
           </div>
           <div class="funnel-summary__cell">
+            <span class="muted">8+ 留存</span>
+            <span class="funnel-summary__num">{{ rateOf(2) }}%</span>
+          </div>
+          <div class="funnel-summary__cell">
             <span class="muted">头部(9+)总量</span>
-            <span class="funnel-summary__num">{{ buckets[0]?.count || 0 }}</span>
+            <span class="funnel-summary__num">{{ buckets[3]?.count || 0 }}</span>
           </div>
         </div>
       </UiChartCard>
@@ -72,26 +72,30 @@ const BUCKETS = [
 ]
 
 const ratingDist = computed(() => store.ratingDist || [])
-const total = computed(() => ratingDist.value.reduce((s, d) => s + (d.value || 0), 0))
+const total = computed(() => ratingDist.value.reduce((s, d) => s + (d.count || 0), 0))
 
 const buckets = computed(() => {
-  // 从 ratingDist 重新聚合成 4 段
   const dist = ratingDist.value
-  const get = (k) => dist.find((d) => String(d.name).includes(k))?.value || 0
-  // 优先使用后端已聚好的 4 段(若存在)
-  if (dist.length && dist[0]?.name && String(dist[0].name).match(/[+分]/)) {
-    return BUCKETS.map((b, i) => ({ ...b, count: dist[i]?.value || 0 }))
-  }
-  // 否则用 bucket 计算
-  return BUCKETS.map((b) => ({ ...b, count: 0 }))
+  const distMap = new Map(dist.map((d) => [d.bucket, d.count || 0]))
+  
+  const score9 = distMap.get('9以上') || 0
+  const score8 = distMap.get('8-9') || 0
+  const score7 = distMap.get('7-8') || 0
+  const score6 = distMap.get('6以下') || 0
+  
+  return [
+    { key: 'all', label: '全部影片', count: total.value },
+    { key: '7+', label: '7 分以上', count: score7 + score8 + score9 },
+    { key: '8+', label: '8 分以上', count: score8 + score9 },
+    { key: '9+', label: '9 分以上', count: score9 },
+  ]
 })
 
 const funnelOption = computed(() => buildFunnelOption(buckets.value.map((b) => ({ name: b.label, value: b.count }))))
 
 function rateOf(i) {
   const cur = buckets.value[i]?.count || 0
-  if (i === 0) return total.value ? Math.round((cur / total.value) * 100) : 0
-  // 留存率 = 上一级 / 本级
+  if (i === 0) return 100
   const prev = buckets.value[i - 1]?.count || 0
   return prev ? Math.round((cur / prev) * 100) : 0
 }

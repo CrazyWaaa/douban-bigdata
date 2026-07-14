@@ -1,492 +1,622 @@
-// 复用的图表 option 工厂：渐变面积折线 / 玫瑰图 / 横向排名条
-
-export function buildAreaLineOption(items, opts) {
-  const color = (opts && opts.color) || '#38bdf8'
-  const label = (opts && opts.label) || ''
-  const max = (opts && opts.max) || null
-  const data = (items || []).map(function (d) {
-    return { name: String(d.name != null ? d.name : (d.year != null ? d.year : (d.bucket != null ? d.bucket : ''))), value: (d.count != null ? d.count : (d.value != null ? d.value : 0)) }
-  })
-  var peakIdx = 0
-  for (var i = 1; i < data.length; i++) if (data[i].value > data[peakIdx].value) peakIdx = i
-  return {
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'cross', lineStyle: { color: 'rgba(56,189,248,.3)' } },
-      formatter: function (params) {
-        var p = params[0]
-        var pt = data[p.dataIndex]
-        var s = ''
-        s += '<div style="font-weight:600;margin-bottom:4px;">' + pt.name + '</div>'
-        s += '<div>数量: <b>' + pt.value + '</b></div>'
-        return s
-      },
-    },
-    grid: { left: 8, right: 16, top: 24, bottom: 28, containLabel: true },
-    xAxis: {
-      type: 'category', data: data.map(function (d) { return d.name }), boundaryGap: false,
-      axisLabel: { color: '#94a3b8', fontSize: 11, hideOverlap: true },
-    },
-    yAxis: { type: 'value', max: max != null ? max : undefined, axisLabel: { color: '#94a3b8', fontSize: 11 } },
-    series: [{
-      type: 'line', name: label,
-      data: data.map(function (d) { return d.value }),
-      smooth: true,
-      symbol: 'circle',
-      symbolSize: function (val, idx) { return idx === peakIdx ? 10 : 6 },
-      showSymbol: true,
-      lineStyle: { width: 2.5, color: color, shadowColor: color, shadowBlur: 12 },
-      itemStyle: { color: color, borderColor: '#0b1020', borderWidth: 2 },
-      emphasis: { focus: 'series', scale: true },
-      areaStyle: {
-        color: {
-          type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
-          colorStops: [
-            { offset: 0, color: color + 'AA' },
-            { offset: 1, color: color + '05' },
-          ],
-        },
-      },
-      markPoint: {
-        symbol: 'circle', symbolSize: 14,
-        itemStyle: { color: color, shadowBlur: 18, shadowColor: color },
-        data: [{ type: 'max', name: '峰值' }],
-      },
-      markLine: { silent: true, symbol: 'none', lineStyle: { color: 'rgba(148,163,184,.2)', type: 'dashed' }, data: [{ type: 'average' }] },
-      animationDuration: 1200, animationEasing: 'cubicOut',
-    }],
-  }
-}
-
-export function buildPolarBarOption(items, opts) {
-  const color = (opts && opts.color) || '#22d3ee'
-  const accent = (opts && opts.accent) || '#f59e0b'
-  const list = items || []
-  const data = list.map(function (d, i) {
-    return {
-      name: (d.bucket != null ? d.bucket : d.name),
-      value: (d.count != null ? d.count : (d.value != null ? d.value : 0)),
-      itemStyle: { color: i === list.length - 1 ? accent : color },
-    }
-  })
-  return {
-    tooltip: { trigger: 'item', formatter: '{b}<br/>数量: <b>{c}</b>' },
-    polar: { radius: '78%' },
-    angleAxis: {
-      type: 'category', data: data.map(function (d) { return d.name }), startAngle: 90,
-      axisLine: { lineStyle: { color: 'rgba(148,163,184,.3)' } },
-      axisLabel: { color: '#94a3b8', fontSize: 11 },
-    },
-    radiusAxis: { show: false },
-    series: [{
-      type: 'bar', data: data,
-      coordinateSystem: 'polar',
-      roundCap: true, barWidth: '62%',
-      itemStyle: { borderRadius: 6, opacity: 0.92 },
-      label: { show: true, position: 'middle', color: '#e6edf7', fontWeight: 600 },
-      animationDuration: 1400, animationEasing: 'cubicOut',
-    }],
-  }
-}
-
-export function buildRankedBarOption(items, opts) {
-  const color = (opts && opts.color) || '#34d399'
-  const top = (opts && opts.top) || 10
-  const sliced = (items || []).slice(0, top).slice().reverse()
-  return {
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    grid: { left: 110, right: 36, top: 8, bottom: 28 },
-    xAxis: { type: 'value', axisLabel: { color: '#94a3b8', fontSize: 11 } },
-    yAxis: {
-      type: 'category', data: sliced.map(function (d) { return d.name }),
-      axisLabel: {
-        color: '#cbd5e1', fontSize: 12,
-        formatter: function (val, idx) {
-          var realIdx = sliced.length - 1 - idx
-          var rank = realIdx + 1
-          if (rank <= 3) return '{r' + rank + '|' + rank + '}  ' + val
-          return rank + '. ' + val
-        },
-        rich: {
-          r1: { color: '#f59e0b', fontWeight: 700, fontSize: 13 },
-          r2: { color: '#94a3b8', fontWeight: 700, fontSize: 13 },
-          r3: { color: '#fb923c', fontWeight: 700, fontSize: 13 },
-        },
-      },
-    },
-    series: [{
-      type: 'bar',
-      data: sliced.map(function (d) { return { value: (d.count != null ? d.count : (d.value != null ? d.value : 0)), name: d.name } }),
-      itemStyle: {
-        color: { type: 'linear', x: 0, y: 0, x2: 1, y2: 0, colorStops: [
-          { offset: 0, color: color + '22' },
-          { offset: 1, color: color },
-        ]},
-        borderRadius: [0, 6, 6, 0],
-      },
-      label: { show: true, position: 'right', color: '#e6edf7', fontWeight: 500 },
-      animationDuration: 1200, animationEasing: 'cubicOut',
-    }],
-  }
-}
-
-// 类型分布 · 评分透镜：双轴复合图（条=数量 / 线=均分）
-export function buildLensOption(items, opts) {
-  const barColor = (opts && opts.barColor) || '#38bdf8'
-  const lineColor = (opts && opts.lineColor) || '#f59e0b'
-  const list = (items || []).slice(0, 10)
-  const names = list.map(function (d) { return String(d.name != null ? d.name : '') })
-  const counts = list.map(function (d) { return Number(d.count || 0) })
-  const avgs = list.map(function (d) { return Number(d.avg_rating || 0) })
-  return {
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: [{ type: 'shadow' }, { type: 'cross' }],
-      formatter: function (params) {
-        var idx = params[0].dataIndex
-        var s = '<div style="font-weight:600;margin-bottom:4px;">' + names[idx] + '</div>'
-        s += '<div>数量: <b>' + counts[idx] + '</b></div>'
-        s += '<div>均分: <b>' + (avgs[idx] ? avgs[idx].toFixed(2) : '-') + '</b></div>'
-        return s
-      },
-    },
-    legend: { textStyle: { color: '#94a3b8' }, top: 0, right: 0, data: ['数量', '均分'] },
-    grid: { left: 8, right: 16, top: 30, bottom: 24, containLabel: true },
-    xAxis: { type: 'category', data: names, axisLabel: { color: '#94a3b8', fontSize: 11, hideOverlap: true, rotate: 30 } },
-    yAxis: [
-      { type: 'value', name: '数量', axisLabel: { color: '#94a3b8', fontSize: 11 }, splitLine: { lineStyle: { color: 'rgba(148,163,184,.12)' } } },
-      { type: 'value', name: '均分', min: 0, max: 10, axisLabel: { color: '#94a3b8', fontSize: 11 }, splitLine: { show: false } },
-    ],
-    series: [
-      {
-        name: '数量', type: 'bar', yAxisIndex: 0, data: counts,
-        itemStyle: {
-          color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [
-            { offset: 0, color: barColor }, { offset: 1, color: barColor + '22' },
-          ]},
-          borderRadius: [4, 4, 0, 0],
-        },
-      },
-      {
-        name: '均分', type: 'line', yAxisIndex: 1, data: avgs, smooth: true,
-        lineStyle: { color: lineColor, width: 2.5 },
-        itemStyle: { color: lineColor },
-        symbol: 'circle', symbolSize: 7,
-        markPoint: { symbol: 'circle', symbolSize: 12, itemStyle: { color: lineColor }, data: [{ type: 'max', name: '峰值' }] },
-      },
-    ],
-  }
-}
-
-// =====================================================================
-// 高级图表工厂(全部接收 (items, opts) 形式,opts 用于覆盖颜色/尺寸等)
-// =====================================================================
-
 /**
- * Radar:多影片维度对比,默认维度:剧情/演技/视效/音乐/节奏
- * items: [{ name, values: [剧情,演技,视效,音乐,节奏] }]
+ * 大屏可视化 ECharts option 工厂(集中管理)
+ * 依据真实接口字段构建,主题切换时通过 readVar 刷新颜色变量。
  */
-export function buildRadarOption(items, opts) {
-  const palette = (opts && opts.palette) || ['#38bdf8', '#f59e0b', '#a78bfa', '#34d399', '#f472b6', '#22d3ee']
-  const indicator = [
-    { name: '剧情', max: 10 },
-    { name: '演技', max: 10 },
-    { name: '视效', max: 10 },
-    { name: '音乐', max: 10 },
-    { name: '节奏', max: 10 },
-  ]
-  const list = (items || []).slice(0, opts?.top || 6)
+
+function readVar(name, fallback = '') {
+  if (typeof window === 'undefined') return fallback
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+  return v || fallback
+}
+
+/** 主题快照:在大屏加载/主题切换时由调用方主动调用 */
+export function themeSnapshot() {
   return {
-    tooltip: { trigger: 'item' },
-    legend: {
-      type: 'scroll', bottom: 0,
-      textStyle: { color: 'var(--c-muted)', fontSize: 11 },
-    },
-    radar: {
-      indicator,
-      center: ['50%', '48%'],
-      radius: '64%',
-      splitNumber: 5,
-      axisName: { color: '#94a3b8', fontSize: 12 },
-      splitLine: { lineStyle: { color: 'rgba(148,163,184,.18)' } },
-      splitArea: { areaStyle: { color: ['rgba(56,189,248,.04)', 'rgba(56,189,248,.08)'] } },
-      axisLine: { lineStyle: { color: 'rgba(148,163,184,.25)' } },
-    },
-    series: [{
-      type: 'radar',
-      data: list.map((d, i) => ({
-        name: d.name,
-        value: d.values,
-        symbolSize: 6,
-        lineStyle: { width: 2, color: palette[i % palette.length] },
-        itemStyle: { color: palette[i % palette.length] },
-        areaStyle: { color: palette[i % palette.length], opacity: 0.18 },
-      })),
-      animationDuration: 1200,
-    }],
+    text:    readVar('--c-text',    '#e2e8f0'),
+    muted:   readVar('--c-muted',   '#94a3b8'),
+    border:  readVar('--c-border',  'rgba(148,163,184,.18)'),
+    primary: readVar('--c-primary', '#22d3ee'),
+    success: readVar('--c-success', '#34d399'),
+    warning: readVar('--c-warning', '#f59e0b'),
+    info:    readVar('--c-info',    '#38bdf8'),
+    danger:  readVar('--c-danger',  '#fb7185'),
+    surface: readVar('--c-surface', '#0f172a'),
+    surface2: readVar('--c-surface-2', 'rgba(148,163,184,.08)'),
   }
 }
 
-/**
- * Sankey:三列能量流(类型→地区→年代)
- * items: [{ source, target, value }]
- */
-export function buildSankeyOption(items, opts) {
-  const palette = (opts && opts.palette) || ['#38bdf8', '#f59e0b', '#34d399', '#a78bfa', '#f472b6', '#22d3ee', '#fb923c']
-  const links = (items || []).map((d, i) => ({
-    source: d.source,
-    target: d.target,
-    value: d.value,
-    lineStyle: { color: 'gradient', curveness: 0.5, opacity: 0.55 },
+/** Sankey 三列能量流 */
+export function buildSankeyOption(payload) {
+  const t = themeSnapshot()
+  const rawNodes = payload?.nodes || []
+  const nodes = rawNodes.map((n) => ({
+    ...n,
+    name: String(n.name),
   }))
+  const nodeNames = new Set(nodes.map((n) => n.name))
+  const links = (payload?.links || [])
+    .filter((l) => l && l.value > 0)
+    .map((l) => ({
+      ...l,
+      source: String(l.source),
+      target: String(l.target),
+    }))
+    .filter((l) => nodeNames.has(l.source) && nodeNames.has(l.target))
   return {
     tooltip: {
       trigger: 'item',
+      triggerOn: 'mousemove|click',
+      backgroundColor: 'rgba(15,23,42,.92)',
+      borderColor: 'rgba(56,189,248,.4)',
+      textStyle: { color: t.text },
       formatter: (p) => {
-        if (p.dataType === 'edge') return `${p.data.source} → ${p.data.target}<br/>影片数: <b>${p.data.value}</b>`
-        return `${p.name}<br/>总流量: <b>${p.value}</b>`
+        if (p.dataType === 'edge') {
+          return `${p.data.source} → ${p.data.target}<br/>流量: <b>${p.data.value}</b>`
+        }
+        return `<b>${p.name}</b><br/>净流出: ${(p.value || 0)}`
       },
     },
     series: [{
       type: 'sankey',
-      left: 8, right: 80, top: 16, bottom: 16,
-      data: opts?.nodes || [],
+      data: nodes,
       links,
-      nodeAlign: 'left',
-      nodeGap: 12,
-      nodeWidth: 14,
-      label: { color: '#cbd5e1', fontSize: 12, fontWeight: 500 },
-      itemStyle: { color: '#38bdf8', borderColor: 'rgba(15,23,42,.6)', borderWidth: 1 },
-      lineStyle: { color: 'gradient', opacity: 0.45, curveness: 0.5 },
+      nodeAlign: 'justify',
       emphasis: { focus: 'adjacency' },
-      animationDuration: 1200,
+      nodeWidth: 18,
+      nodeGap: 12,
+      layoutIterations: 64,
+      label: { color: t.text, fontSize: 11 },
+      lineStyle: { color: 'gradient', curveness: 0.5, opacity: 0.55 },
+      itemStyle: { borderWidth: 0, color: t.primary },
     }],
-    color: palette,
   }
 }
 
-/**
- * Treemap:类型/地区嵌套树
- * items: [{ name, value, children? }]  二级结构
- */
-export function buildTreemapOption(items, opts) {
-  const palette = (opts && opts.palette) || ['#38bdf8', '#f59e0b', '#34d399', '#a78bfa', '#f472b6', '#22d3ee', '#fb923c', '#a3e635', '#60a5fa']
-  const data = (items || []).filter((item) => Number(item.value) > 0).map((item, index) => ({
-    ...item,
-    itemStyle: { color: palette[index % palette.length] },
-    children: (item.children || []).filter((child) => Number(child.value) > 0),
-  }))
+/** Treemap 类型 × 国家 矩阵 */
+export function buildTreemapOption(payload) {
+  const t = themeSnapshot()
+  const data = Array.isArray(payload) ? payload : []
+  // 按类型分组 -> 国家
+  const byGenre = new Map()
+  for (const it of data) {
+    const g = it.genre || '其他'
+    if (!byGenre.has(g)) byGenre.set(g, [])
+    byGenre.get(g).push({ name: it.country, value: it.value })
+  }
+  const tree = []
+  for (const [genre, arr] of byGenre) {
+    const total = arr.reduce((s, x) => s + (x.value || 0), 0)
+    if (total < 1) continue
+    tree.push({ name: genre, value: total, children: arr })
+  }
+  const colors = [t.primary, t.success, t.warning, t.info, t.danger, '#a78bfa', '#f472b6', '#22c55e', '#fde047', '#fb923c']
+  let ci = 0
+  for (const n of tree) {
+    n.itemStyle = { color: colors[ci % colors.length], borderColor: t.surface, borderWidth: 2 }
+    for (const c of n.children || []) {
+      c.itemStyle = { color: colors[ci % colors.length], borderColor: t.surface, borderWidth: 1 }
+    }
+    ci++
+  }
   return {
     tooltip: {
-      formatter: (p) => `${p.name}<br/>数量: <b>${Number(p.value || 0)}</b>`,
+      formatter: (p) => {
+        const path = (p.treePathInfo || []).map((x) => x.name).filter(Boolean).join(' / ')
+        return `${path}<br/>片数: <b>${p.value || 0}</b>`
+      },
     },
     series: [{
       type: 'treemap',
       roam: false,
-      nodeClick: 'zoomToNode',
-      breadcrumb: { show: true, bottom: 4, itemStyle: { color: '#334155', borderColor: '#475569' } },
-      top: 8, left: 8, right: 8, bottom: 32,
-      leafDepth: 2,
+      breadcrumb: { show: false },
+      nodeClick: false,
+      width: '100%',
+      height: '100%',
+      top: 8,
+      left: 8,
+      right: 8,
+      bottom: 8,
+      tile: 'squarify',
+      data: tree,
       label: {
         show: true,
-        color: '#fff',
-        fontSize: 12,
-        overflow: 'truncate',
-        formatter: (p) => `${p.name}\n${Number(p.value || 0)} 部`,
-      },
-      upperLabel: { show: true, height: 28, color: '#fff', fontSize: 13, fontWeight: 700 },
-      itemStyle: { borderColor: '#0f172a', borderWidth: 2, gapWidth: 2 },
-      levels: [
-        { itemStyle: { gapWidth: 6, borderWidth: 0 } },
-        { colorSaturation: [0.35, 0.65], itemStyle: { gapWidth: 2, borderWidth: 2 } },
-        { colorSaturation: [0.2, 0.55], itemStyle: { gapWidth: 1, borderWidth: 1 } },
-      ],
-      data,
-    }],
-  }
-}
-
-export function buildWordCloudOption(items, opts) {
-  const palette = (opts && opts.palette) || ['#38bdf8', '#f59e0b', '#34d399', '#a78bfa', '#f472b6', '#22d3ee', '#fb923c']
-  const data = (items || []).filter((item) => item.name && Number(item.value) > 0)
-  const max = Math.max(1, ...data.map((item) => Number(item.value)))
-  const min = Math.min(...data.map((item) => Number(item.value)), max)
-  return {
-    tooltip: { show: true, formatter: '{b}<br/>出现: <b>{c}</b> 次' },
-    series: [{
-      type: 'wordCloud',
-      shape: 'circle',
-      left: 'center', top: 'center',
-      width: '92%', height: '92%',
-      sizeRange: [14, 58],
-      rotationRange: [-20, 20],
-      rotationStep: 10,
-      gridSize: 8,
-      drawOutOfBound: false,
-      shrinkToFit: true,
-      layoutAnimation: true,
-      textStyle: {
-        fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif',
-        fontWeight: 700,
-        color: (params) => palette[params.dataIndex % palette.length],
-      },
-      emphasis: { focus: 'self', textStyle: { textShadowBlur: 10, textShadowColor: '#38bdf8' } },
-      data: data.map((item) => ({
-        ...item,
-        value: Number(item.value),
-        textStyle: { fontSize: 14 + ((Number(item.value) - min) / Math.max(1, max - min)) * 44 },
-      })),
-    }],
-  }
-}
-
-export function buildGaugeOption(items, opts) {
-  const list = items || []
-  return {
-    tooltip: { formatter: '{a} <br/>{b}: {c}' },
-    series: list.map((d, i) => ({
-      name: d.name,
-      type: 'gauge',
-      min: 0,
-      max: d.max || 100,
-      center: [`${((i + 0.5) * 100) / list.length}%`, '55%'],
-      radius: '70%',
-      startAngle: 200,
-      endAngle: -20,
-      axisLine: {
-        lineStyle: {
-          width: 14,
-          color: [
-            [0.6, '#f87171'],
-            [0.8, '#f59e0b'],
-            [1.0, d.color || '#34d399'],
-          ],
+        formatter: (p) => {
+          const path = (p.treePathInfo || []).map((x) => x.name).filter(Boolean)
+          if (path.length >= 3) return `{b|${p.data.name}}\n{c|${p.value} 部}`
+          if (path.length === 2) return `{b|${p.data.name}}\n{c|${p.data.value || 0} 部}`
+          return `{b|${p.data.name}}\n{c|${p.data.value || 0} 部}`
+        },
+        rich: {
+          b: { color: '#0b1020', fontWeight: 700, fontSize: 12, lineHeight: 18 },
+          c: { color: '#0b1020', fontSize: 11, lineHeight: 16 },
         },
       },
-      pointer: { length: '62%', width: 5, itemStyle: { color: d.color || '#38bdf8' } },
-      axisTick: { length: 6, lineStyle: { color: 'rgba(148,163,184,.3)' } },
-      splitLine: { length: 10, lineStyle: { color: 'rgba(148,163,184,.5)' } },
-      axisLabel: { color: '#94a3b8', fontSize: 10, distance: -22 },
-      title: { offsetCenter: [0, '70%'], color: '#94a3b8', fontSize: 12 },
-      detail: { valueAnimation: true, color: '#e6edf7', fontSize: 22, fontWeight: 700, offsetCenter: [0, '40%'], formatter: '{value}' },
-      data: [{ value: d.value, name: d.name }],
-    })),
-  }
-}
-
-export function buildFunnelOption(items, opts) {
-  const palette = (opts && opts.palette) || ['#38bdf8', '#f59e0b', '#34d399', '#a78bfa', '#f472b6']
-  return {
-    tooltip: { trigger: 'item', formatter: '{b}<br/>数量: <b>{c}</b><br/>占比: <b>{d}%</b>' },
-    legend: { textStyle: { color: '#94a3b8' }, bottom: 0, type: 'scroll' },
-    series: [{
-      type: 'funnel',
-      left: '8%', right: '8%', top: 16, bottom: 36,
-      width: '84%',
-      min: 0,
-      sort: 'descending',
-      gap: 4,
-      label: { show: true, position: 'inside', color: '#fff', fontWeight: 600 },
-      labelLine: { length: 10, lineStyle: { width: 1 } },
-      itemStyle: { borderColor: 'rgba(15,23,42,.6)', borderWidth: 1 },
-      emphasis: { label: { fontSize: 16 } },
-      data: (items || []).map((d, i) => ({
-        ...d,
-        itemStyle: { color: palette[i % palette.length] },
-      })),
+      upperLabel: {
+        show: true,
+        height: 22,
+        color: t.text,
+        fontWeight: 600,
+        formatter: (p) => (p.data.children && p.data.children.length ? `${p.data.name}  ${p.data.value}` : ''),
+      },
+      levels: [
+        { itemStyle: { gapWidth: 6, borderColor: t.surface, borderWidth: 6 } },
+        { itemStyle: { gapWidth: 3, borderColor: t.surface, borderWidth: 3 } },
+      ],
     }],
   }
 }
 
-/**
- * Calendar Heatmap:按年×月 的影片数热力
- * items: [{ date: 'YYYY-MM-DD', value: number }]
- */
-export function buildCalendarOption(items, year, opts) {
-  const y = year || new Date().getFullYear()
-  const data = (items || []).map((item) => [item.date, Number(item.value || 0)])
-  const max = Math.max(1, ...data.map((item) => item[1]))
+/** Calendar 月度热力 */
+export function buildCalendarOption(points, year) {
+  const t = themeSnapshot()
+  const data = (points || []).map((p) => [p.date, Number(p.value || 0)])
+  const max = Math.max(1, ...data.map((d) => d[1]))
+  const yr = year || (data[0] ? Number(data[0][0].slice(0, 4)) : new Date().getFullYear())
   return {
-    tooltip: { formatter: (p) => `${String(p.value[0]).slice(0, 7)}<br/>上映影片: <b>${p.value[1]}</b>` },
+    tooltip: {
+      formatter: (p) => `${String(p.value[0]).slice(0, 7)}<br/>上榜片数: <b>${p.value[1]}</b>`,
+      backgroundColor: 'rgba(15,23,42,.92)',
+      borderColor: 'rgba(56,189,248,.4)',
+      textStyle: { color: t.text },
+    },
     visualMap: {
       min: 0, max, calculable: false,
-      orient: 'horizontal', left: 'center', bottom: 0,
+      orient: 'horizontal', left: 'center', bottom: 4,
       text: ['多', '少'],
       inRange: { color: ['#172554', '#0ea5e9', '#8b5cf6', '#ec4899'] },
-      textStyle: { color: '#94a3b8', fontSize: 10 },
+      textStyle: { color: t.muted, fontSize: 10 },
     },
     calendar: {
-      top: 34, left: 24, right: 24, bottom: 42,
-      range: String(y),
+      top: 38, left: 28, right: 28, bottom: 44,
+      range: String(yr),
       orient: 'horizontal',
       cellSize: ['auto', 18],
       itemStyle: { borderColor: 'rgba(15,23,42,.7)', borderWidth: 2, color: 'rgba(56,189,248,.04)' },
       splitLine: { show: false },
       yearLabel: { show: false },
-      monthLabel: { color: '#cbd5e1', fontSize: 11, nameMap: 'ZH' },
-      dayLabel: { show: false },
+      monthLabel: { color: t.text, fontSize: 11, nameMap: 'ZH' },
+      dayLabel: { color: t.muted, fontSize: 10, firstDay: 1 },
     },
     series: [{ type: 'heatmap', coordinateSystem: 'calendar', data }],
   }
 }
 
-export function buildGraphOption(payload, opts) {
+/** Graph 合作网络 */
+export function buildGraphOption(payload) {
+  const t = themeSnapshot()
   const data = payload || { nodes: [], links: [] }
-  const palette = (opts && opts.palette) || ['#38bdf8', '#f59e0b', '#34d399', '#a78bfa', '#f472b6', '#22d3ee']
-  const categories = (opts && opts.categories) || []
   return {
     tooltip: {
+      backgroundColor: 'rgba(15,23,42,.92)',
+      borderColor: 'rgba(56,189,248,.4)',
+      textStyle: { color: t.text },
       formatter: (p) => p.dataType === 'edge'
-        ? `${p.data.source} → ${p.data.target}<br/>合作: <b>${p.data.value || 0}</b>`
-        : `${p.data.name}<br/>连接数: <b>${p.data.value || 0}</b>`,
+        ? `${p.data.source} ↔ ${p.data.target}<br/>合作: <b>${p.data.value || 0}</b> 部`
+        : `${p.data.name}<br/>作品数: <b>${p.data.value || 0}</b>`,
     },
-    legend: categories.length ? [{ bottom: 0, data: categories.map((item) => item.name), textStyle: { color: '#94a3b8' } }] : undefined,
     series: [{
-      type: 'graph', layout: 'force', roam: true, draggable: true,
-      left: 20, right: 20, top: 20, bottom: 45,
-      data: data.nodes || [], links: data.links || [],
-      categories: categories.map((item, index) => ({ name: item.name, itemStyle: { color: palette[index % palette.length] } })),
-      label: { show: true, position: 'right', color: '#cbd5e1', fontSize: 11, formatter: '{b}' },
+      type: 'graph',
+      layout: 'force',
+      roam: true,
+      draggable: true,
+      left: 20, right: 20, top: 20, bottom: 20,
+      data: data.nodes || [],
+      links: data.links || [],
+      label: { show: true, position: 'right', color: t.text, fontSize: 11, formatter: '{b}' },
       labelLayout: { hideOverlap: true },
-      force: { initLayout: 'circular', repulsion: 420, edgeLength: [70, 150], gravity: 0.08, friction: 0.6 },
-      lineStyle: { color: 'source', opacity: 0.45, width: 1.5, curveness: 0.12 },
-      emphasis: { focus: 'adjacency', scale: 1.4, lineStyle: { opacity: 0.9, width: 3 } },
+      force: { initLayout: 'circular', repulsion: 380, edgeLength: [60, 140], gravity: 0.06, friction: 0.5 },
+      lineStyle: { color: 'source', opacity: 0.55, width: 1.4, curveness: 0.12 },
+      emphasis: { focus: 'adjacency', lineStyle: { opacity: 0.95, width: 3 } },
+      itemStyle: { color: t.primary },
     }],
   }
 }
 
-export function buildMapOption(items, opts) {
-  const palette = (opts && opts.palette) || ['#38bdf8', '#f59e0b', '#34d399', '#a78bfa', '#f472b6', '#22d3ee']
-  const data = (items || []).filter((item) => Array.isArray(item.value) && item.value.length >= 3)
-  const max = Math.max(1, ...data.map((item) => Number(item.value[2] || 0)))
+/** Map 世界地图(用后端返回的中英名 + ECharts 内置 world 地图) */
+export function buildWorldMapOption(items) {
+  const t = themeSnapshot()
+  const list = Array.isArray(items) ? items : []
+  
+  const COUNTRY_MAP = {
+    // 后端英文长名 / 各种写法 -> world.json 里 properties.name
+    'United States': 'United States',
+    'United States of America': 'United States',
+    'United Kingdom': 'United Kingdom',
+    'Great Britain': 'United Kingdom',
+    'UK': 'United Kingdom',
+    'Japan': 'Japan',
+    'China': 'China',
+    'Hong Kong': 'China',
+    'Taiwan': 'China',
+    'Macao': 'China',
+    'Macau': 'China',
+    'South Korea': 'Korea',
+    'Korea, Republic of': 'Korea',
+    'Korea, South': 'Korea',
+    'North Korea': 'Dem. Rep. Korea',
+    "Korea, Democratic People's Republic of": 'Dem. Rep. Korea',
+    'France': 'France',
+    'Germany': 'Germany',
+    'Italy': 'Italy',
+    'Spain': 'Spain',
+    'Canada': 'Canada',
+    'Australia': 'Australia',
+    'India': 'India',
+    'Thailand': 'Thailand',
+    'Russia': 'Russia',
+    'Russian Federation': 'Russia',
+    'New Zealand': 'New Zealand',
+    'Brazil': 'Brazil',
+    'Sweden': 'Sweden',
+    'Denmark': 'Denmark',
+    'Switzerland': 'Switzerland',
+    'Poland': 'Poland',
+    'Austria': 'Austria',
+    'Argentina': 'Argentina',
+    'Mexico': 'Mexico',
+    'South Africa': 'South Africa',
+    'Netherlands': 'Netherlands',
+    'Greece': 'Greece',
+    'Czech Rep.': 'Czech Rep.',
+    'Czechia': 'Czech Rep.',
+    'Czech Republic': 'Czech Rep.',
+    'Hungary': 'Hungary',
+    'Ireland': 'Ireland',
+    'Belgium': 'Belgium',
+    'Lebanon': 'Lebanon',
+    'Iran': 'Iran',
+    'Turkey': 'Turkey',
+    'Türkiye': 'Turkey',
+    'Israel': 'Israel',
+    'Singapore': 'Singapore',
+    'Malaysia': 'Malaysia',
+    'Vietnam': 'Vietnam',
+    'Viet Nam': 'Vietnam',
+    'Indonesia': 'Indonesia',
+    'Philippines': 'Philippines',
+    'Ukraine': 'Ukraine',
+    'Romania': 'Romania',
+    'Finland': 'Finland',
+    'Norway': 'Norway',
+    'Portugal': 'Portugal',
+    'Chile': 'Chile',
+    'Cuba': 'Cuba',
+    'Morocco': 'Morocco',
+    'Tunisia': 'Tunisia',
+    'Jordan': 'Jordan',
+    'Qatar': 'Qatar',
+    'United Arab Emirates': 'United Arab Emirates',
+    'UAE': 'United Arab Emirates',
+    'Saudi Arabia': 'Saudi Arabia',
+    'Cyprus': 'Cyprus',
+    'Malta': 'Malta',
+    'Iceland': 'Iceland',
+    'Luxembourg': 'Luxembourg',
+    'Estonia': 'Estonia',
+    'Latvia': 'Latvia',
+    'Lithuania': 'Lithuania',
+    'Slovenia': 'Slovenia',
+    'Slovakia': 'Slovakia',
+    'Serbia': 'Serbia',
+    'Croatia': 'Croatia',
+    'Bulgaria': 'Bulgaria',
+    'Albania': 'Albania',
+    'Bosnia and Herzegovina': 'Bosnia and Herz.',
+    'Bosnia & Herzegovina': 'Bosnia and Herz.',
+    'Belarus': 'Belarus',
+    'Armenia': 'Armenia',
+    'Azerbaijan': 'Azerbaijan',
+    'Georgia': 'Georgia',
+    'Kazakhstan': 'Kazakhstan',
+    'Afghanistan': 'Afghanistan',
+    'Bhutan': 'Bhutan',
+    'Bangladesh': 'Bangladesh',
+    'Nepal': 'Nepal',
+    'Sri Lanka': 'Sri Lanka',
+    'Myanmar': 'Myanmar',
+    'Burma': 'Myanmar',
+    'Cambodia': 'Cambodia',
+    'Laos': 'Lao PDR',
+    'Lao PDR': 'Lao PDR',
+    'Mongolia': 'Mongolia',
+    'Pakistan': 'Pakistan',
+    'Panama': 'Panama',
+    'Costa Rica': 'Costa Rica',
+    'Honduras': 'Honduras',
+    'El Salvador': 'El Salvador',
+    'Guatemala': 'Guatemala',
+    'Haiti': 'Haiti',
+    'Dominican Rep.': 'Dominican Rep.',
+    'Dominican Republic': 'Dominican Rep.',
+    'Jamaica': 'Jamaica',
+    'Trinidad and Tobago': 'Trinidad and Tobago',
+  }
+
+  const merged = {}
+  for (const x of list) {
+    const mappedName = COUNTRY_MAP[x.name_en] || x.name_en
+    if (!merged[mappedName]) {
+      merged[mappedName] = { name: mappedName, name_zh: x.name_zh, count: 0, avg_rating: 0, rating_sum: 0, rating_n: 0 }
+    }
+    merged[mappedName].count += Number(x.count || 0)
+    if (x.avg_rating) {
+      merged[mappedName].rating_sum += Number(x.avg_rating) * Number(x.count || 0)
+      merged[mappedName].rating_n += Number(x.count || 0)
+    }
+  }
+
+  const finalData = Object.values(merged).map((x) => ({
+    name: x.name,
+    name_zh: x.name_zh,
+    count: x.count,
+    avg_rating: x.rating_n > 0 ? Number((x.rating_sum / x.rating_n).toFixed(2)) : 0,
+    value: x.count,
+  }))
+
+  const max = Math.max(1, ...finalData.map((x) => x.count))
   return {
-    tooltip: { formatter: (p) => `${p.name}<br/>影片数: <b>${p.value?.[2] || 0}</b>` },
-    graphic: [{
-      type: 'group', left: 'center', top: 'middle', bounding: 'raw', silent: true,
-      children: [{
-        type: 'path',
-        shape: {
-          pathData: 'M18 119L43 95L77 91L91 67L128 51L157 63L184 48L216 58L238 78L279 72L305 49L344 44L375 58L407 55L441 69L480 61L520 77L554 72L593 88L629 84L662 101L646 122L611 128L583 151L546 146L514 165L474 157L444 175L402 169L365 184L326 174L291 188L260 171L222 178L190 158L151 163L121 143L81 148L49 133Z M82 164L112 174L132 203L125 239L105 272L85 247L73 209Z M222 190L252 201L271 235L263 278L241 316L220 285L208 241Z M351 194L391 202L418 233L409 269L375 284L344 252L332 218Z M484 183L529 190L551 220L541 255L505 270L474 242L463 207Z M565 277L599 287L617 310L601 330L572 319Z',
-          x: 0, y: 0, width: 680, height: 360,
-        },
-        style: { fill: 'rgba(30, 58, 90, .52)', stroke: 'rgba(56, 189, 248, .28)', lineWidth: 1.5 },
-      }],
-    }],
-    visualMap: {
-      min: 0, max, left: 12, bottom: 12, dimension: 2,
-      inRange: { color: ['#38bdf8', '#a78bfa', '#f472b6'] },
-      text: ['多', '少'], textStyle: { color: '#94a3b8', fontSize: 10 }, calculable: false,
+    tooltip: {
+      backgroundColor: 'rgba(15,23,42,.92)',
+      borderColor: 'rgba(56,189,248,.4)',
+      textStyle: { color: t.text },
+      formatter: (p) => {
+        const d = p.data || {}
+        const zh = d.name_zh || p.name
+        const count = d.count != null ? d.count : p.value
+        const avg = d.avg_rating
+        return `${zh}<br/>片数: <b>${count}</b>${avg ? `<br/>平均: ${avg}` : ''}`
+      },
     },
-    grid: { left: 28, right: 28, top: 22, bottom: 30 },
-    xAxis: { type: 'value', min: -180, max: 180, show: false },
-    yAxis: { type: 'value', min: -60, max: 85, show: false },
+    visualMap: {
+      min: 0, max, left: 16, bottom: 16,
+      calculable: true,
+      text: ['多', '少'],
+      inRange: { color: ['#0c4a6e', '#0ea5e9', '#a78bfa', '#f472b6'] },
+      textStyle: { color: t.muted, fontSize: 10 },
+    },
+    geo: {
+      map: 'world',
+      roam: true,
+      zoom: 1.2,
+      itemStyle: {
+        areaColor: 'rgba(56,189,248,.06)',
+        borderColor: 'rgba(56,189,248,.45)',
+        borderWidth: 0.6,
+      },
+      emphasis: {
+        itemStyle: { areaColor: '#38bdf8' },
+        label: { show: true, color: '#0b1020' },
+      },
+      label: { show: false },
+    },
     series: [{
-      type: 'effectScatter', coordinateSystem: 'cartesian2d', data,
-      showEffectOn: 'emphasis', rippleEffect: { scale: 2.4, brushType: 'stroke' },
-      symbolSize: (value) => 8 + Math.sqrt(Number(value[2] || 0) / max) * 30,
-      itemStyle: { color: (p) => palette[p.dataIndex % palette.length], shadowBlur: 14, shadowColor: '#38bdf8' },
-      label: { show: true, formatter: '{b}', position: 'right', color: '#e2e8f0', fontSize: 10 },
-      labelLayout: { hideOverlap: true }, emphasis: { scale: 1.25 },
+      type: 'map',
+      geoIndex: 0,
+      data: finalData,
+    }],
+  }
+}
+
+/**
+ * Gauge option factory.
+ * payload: [{ name, value, max?, color? }]
+ */
+export function buildGaugeOption(payload, opts = {}) {
+  const t = themeSnapshot()
+  const list = Array.isArray(payload) ? payload.filter((d) => d && d.name) : []
+  if (!list.length) {
+    return {
+      tooltip: {},
+      series: [],
+      graphic: [{ type: 'text', left: 'center', top: 'middle', style: { text: '暂无指标数据', fill: t.muted, fontSize: 12 } }],
+    }
+  }
+  const rows = opts.rows || 2
+  const cols = opts.cols || Math.ceil(list.length / rows)
+  const palette = [t.primary, t.warning, t.success, t.info, t.danger, '#a78bfa', '#f472b6', '#22d3ee']
+  const series = list.map((it, i) => {
+    const r = Math.floor(i / cols)
+    const c = i % cols
+    const w = 100 / cols
+    const h = 100 / rows
+    return {
+      type: 'gauge',
+      name: it.name,
+      center: [`${w * c + w / 2}%`, `${h * r + h / 2}%`],
+      radius: `${Math.min(w, h) * 0.42}%`,
+      min: 0,
+      max: it.max ?? 100,
+      startAngle: 200,
+      endAngle: -20,
+      progress: { show: true, width: 8, itemStyle: { color: it.color || palette[i % palette.length] } },
+      axisLine: { lineStyle: { width: 8, color: [[1, 'rgba(148,163,184,.18)']] } },
+      pointer: { show: false },
+      axisTick: { show: false },
+      splitLine: { show: false },
+      axisLabel: { show: false },
+      anchor: { show: false },
+      title: { show: true, offsetCenter: [0, '70%'], color: t.muted, fontSize: 11 },
+      detail: {
+        valueAnimation: true,
+        offsetCenter: [0, '0%'],
+        formatter: (v) => Number(v).toFixed(1),
+        color: t.text,
+        fontSize: 18,
+        fontWeight: 700,
+      },
+      data: [{ value: Number(it.value || 0), name: it.name }],
+    }
+  })
+  return {
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: 'rgba(15, 23, 42, .92)',
+      borderColor: 'rgba(56,189,248,.4)',
+      textStyle: { color: t.text },
+      formatter: (p) => `${p.name}<br/><b>${p.value}</b> / ${p.series.max || '-'}`,
+    },
+    series,
+  }
+}
+
+/**
+ * Funnel option factory.
+ * payload: [{ name, value }]
+ */
+export function buildFunnelOption(payload, opts = {}) {
+  const t = themeSnapshot()
+  const items = (Array.isArray(payload) ? payload : [])
+    .filter((d) => d && d.name && Number.isFinite(d.value) && d.value > 0)
+  if (!items.length) {
+    return {
+      tooltip: {},
+      series: [],
+      graphic: [{ type: 'text', left: 'center', top: 'middle', style: { text: '暂无漏斗数据', fill: t.muted, fontSize: 12 } }],
+    }
+  }
+  const palette = [t.primary, t.info, t.success, t.warning, t.danger]
+  return {
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: 'rgba(15, 23, 42, .92)',
+      borderColor: 'rgba(56,189,248,.4)',
+      textStyle: { color: t.text },
+      formatter: '{b}: <b>{c}</b>',
+    },
+    legend: { show: true, bottom: 0, textStyle: { color: t.muted, fontSize: 11 } },
+    series: [{
+      type: 'funnel',
+      left: '8%',
+      right: '8%',
+      top: 16,
+      bottom: 36,
+      width: '84%',
+      min: 0,
+      max: Math.max(...items.map((d) => d.value)),
+      minSize: '0%',
+      maxSize: '100%',
+      sort: 'descending',
+      gap: 2,
+      funnelAlign: 'center',
+      label: { show: true, position: 'inside', color: '#0b1020', fontWeight: 600, fontSize: 12, formatter: '{b}\n{c}' },
+      labelLine: { show: false },
+      itemStyle: { borderColor: t.surface, borderWidth: 1 },
+      emphasis: { label: { fontSize: 14 } },
+      data: items.map((d, i) => ({ ...d, itemStyle: { color: palette[i % palette.length] } })),
+    }],
+  }
+}
+
+/**
+ * Radar option factory.
+ * payload: [{ name, values: number[] }]
+ * opts.indicators: [{ name, max? }]
+ */
+export function buildRadarOption(payload, opts = {}) {
+  const t = themeSnapshot()
+  const items = (Array.isArray(payload) ? payload : []).filter((d) => d && d.name && Array.isArray(d.values) && d.values.length)
+  if (!items.length) {
+    return {
+      tooltip: {},
+      series: [],
+      graphic: [{ type: 'text', left: 'center', top: 'middle', style: { text: '暂无能力数据', fill: t.muted, fontSize: 12 } }],
+    }
+  }
+  const dim = items[0].values.length
+  const indicators = (opts.indicators && opts.indicators.length === dim)
+    ? opts.indicators.map((it) => ({ name: it.name, max: it.max ?? 10 }))
+    : Array.from({ length: dim }, (_, i) => ({
+        name: (opts.indicators && opts.indicators[i] && opts.indicators[i].name) || (`维度${i + 1}`),
+        max: (opts.indicators && opts.indicators[i] && opts.indicators[i].max) || 10,
+      }))
+  const maxVal = Math.max(10, ...items.flatMap((d) => d.values))
+  for (const ind of indicators) if (ind.max < maxVal) ind.max = maxVal
+  const palette = [t.primary, t.warning, t.success, t.danger, t.info, '#a78bfa', '#f472b6', '#22d3ee']
+  return {
+    tooltip: {
+      backgroundColor: 'rgba(15, 23, 42, .92)',
+      borderColor: 'rgba(56,189,248,.4)',
+      textStyle: { color: t.text },
+      trigger: 'item',
+    },
+    legend: {
+      data: items.map((d) => d.name),
+      bottom: 0,
+      textStyle: { color: t.muted, fontSize: 11 },
+      icon: 'roundRect',
+      itemWidth: 10,
+      itemHeight: 10,
+    },
+    radar: {
+      indicator: indicators,
+      center: ['50%', '48%'],
+      radius: '62%',
+      splitNumber: 4,
+      axisName: { color: t.muted, fontSize: 11 },
+      splitLine: { lineStyle: { color: 'rgba(148,163,184,.2)' } },
+      splitArea: { areaStyle: { color: ['rgba(56,189,248,.04)', 'rgba(56,189,248,.08)'] } },
+      axisLine: { lineStyle: { color: 'rgba(148,163,184,.25)' } },
+    },
+    series: [{
+      type: 'radar',
+      data: items.map((d, i) => ({
+        name: d.name,
+        value: d.values,
+        symbol: 'circle',
+        symbolSize: 5,
+        lineStyle: { color: palette[i % palette.length], width: 2 },
+        itemStyle: { color: palette[i % palette.length] },
+        areaStyle: { color: palette[i % palette.length], opacity: 0.18 },
+      })),
+    }],
+  }
+}
+
+/**
+ * WordCloud option factory.
+ * payload: [{ name, value }]
+ */
+export function buildWordCloudOption(payload, opts = {}) {
+  const t = themeSnapshot()
+  const list = (Array.isArray(payload) ? payload : [])
+    .filter((d) => d && d.name && Number.isFinite(d.value) && d.value > 0)
+  if (!list.length) {
+    return {
+      tooltip: {},
+      series: [],
+      graphic: [{ type: 'text', left: 'center', top: 'middle', style: { text: '暂无词云数据', fill: t.muted, fontSize: 12 } }],
+    }
+  }
+  const palette = [t.primary, t.warning, t.success, t.danger, t.info, '#a78bfa', '#f472b6', '#22d3ee']
+  return {
+    tooltip: {
+      show: true,
+      backgroundColor: 'rgba(15, 23, 42, .92)',
+      borderColor: 'rgba(56,189,248,.4)',
+      textStyle: { color: t.text },
+      formatter: (p) => `${p.name}<br/>${p.value}`,
+    },
+    series: [{
+      type: 'wordCloud',
+      shape: 'circle',
+      left: 'center',
+      top: 'center',
+      width: '92%',
+      height: '92%',
+      sizeRange: [14, 56],
+      rotationRange: [-30, 30],
+      rotationStep: 15,
+      gridSize: 6,
+      drawOutOfBound: false,
+      textStyle: {
+        fontFamily: '-apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif',
+        fontWeight: 700,
+        color: (i) => palette[i % palette.length],
+      },
+      emphasis: {
+        textStyle: { color: '#fff', textShadowColor: t.primary, textShadowBlur: 12 },
+      },
+      data: list,
     }],
   }
 }

@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    豆瓣电影大数据分析平台 - Design Tokens & Global Styles
    ============================================================ */
 
@@ -53,7 +53,7 @@
   /* 动效曲线 */
   --ease-out: cubic-bezier(.16, 1, .3, 1);
   --ease-in-out: cubic-bezier(.65, 0, .35, 1);
-  --t-fast: 150ms; --t: 220ms; --t-slow: 420ms;
+  --t-fast: 150ms; --t: 220ms; --t-slow: 420ms; --t-page: 360ms;
 }
 
 [data-theme="light"] {
@@ -144,6 +144,45 @@ a:hover { color: var(--c-primary-soft); }
   0%, 100% { box-shadow: 0 0 0 0 var(--c-primary-glow); }
   50%      { box-shadow: 0 0 16px 4px var(--c-primary-glow); }
 }
+
+/* 页面切换入场 */
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 通用入场：fade-up（增强版，节奏更柔） */
+.fade-up {
+  opacity: 0;
+  transform: translateY(14px);
+  animation: fadeUp var(--t-slow) var(--ease-out) forwards;
+}
+
+/* stagger 工具类：父容器用 --i CSS 变量传入序号，自动算 delay
+   用法：<div class="fade-up-stagger" style="--i: 3"> */
+.fade-up-stagger {
+  opacity: 0;
+  transform: translateY(12px);
+  animation: fadeUp 480ms var(--ease-out) forwards;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+/* Vue <transition name="page"> 类：路由切换 */
+.page-enter-active { animation: pageEnter var(--t-page) var(--ease-out) both; }
+.page-leave-active { animation: pageEnter var(--t-page) var(--ease-out) both reverse; }
+
+/* 全局尊重 prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 
 /* ============== NProgress 顶部进度条 ============== */
 .np-bar {

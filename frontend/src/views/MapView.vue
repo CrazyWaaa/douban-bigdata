@@ -1,12 +1,12 @@
 <template>
   <PageScaffold title="世界电影地图" subtitle="按制片国家与地区展示 Top 250 分布" :loading="loading" :error="error" @retry="load">
     <template #actions><span class="muted">已映射 {{ mapItems.length }} 个国家或地区</span></template>
-    <UiChartCard title="全球影片分布" sub="真实国界与经纬度坐标，气泡大小代表影片数量" class="fade-up">
+    <UiChartCard title="全球影片分布" sub="真实国界与经纬度坐标,气泡大小代表影片数量" class="fade-up">
       <EChart :option="mapOption" height="620px" @itemClick="onMapClick" />
     </UiChartCard>
     <UiChartCard title="地区 TOP 12" class="fade-up">
       <div class="country-grid">
-        <button v-for="item in topCountries" :key="item.name" @click="goCountry(item.name)"><span>{{ item.name }}</span><b>{{ item.count }}</b></button>
+        <button v-for="item in topCountries" :key="item.name" @click="goCountry(item.name)"><span>{{ item.name || '-' }}</span><b>{{ item.count || '-' }}</b></button>
       </div>
     </UiChartCard>
   </PageScaffold>
@@ -78,12 +78,13 @@ const mapItems = computed(() => {
 })
 const topCountries = computed(() => mapItems.value.slice(0, 12))
 const maxCount = computed(() => Math.max(1, ...mapItems.value.map((item) => item.count)))
+const topRanks = computed(() => mapItems.value.slice(0, 8).map((item) => item.name))
 const mapOption = computed(() => ({
   backgroundColor: 'transparent',
   tooltip: {
     trigger: 'item',
     formatter: (params) => params.seriesType === 'effectScatter'
-      ? `${params.data.name}<br/>影片数：<b>${params.data.count}</b>`
+      ? `${params.data.name}<br/>影片数:<b>${params.data.count}</b>`
       : params.name,
   },
   geo: {
@@ -105,20 +106,25 @@ const mapOption = computed(() => ({
       coordinateSystem: 'geo',
       zlevel: 2,
       data: mapItems.value.map((item) => ({ name: item.name, count: item.count, value: [...item.coord, item.count] })),
-      symbolSize: (value) => 7 + Math.sqrt(Number(value[2]) / maxCount.value) * 28,
-      rippleEffect: { brushType: 'stroke', scale: 2.4 },
+      symbolSize: (value) => { const r = maxCount.value > 0 ? Number(value[2]) / maxCount.value : 0; return 8 + Math.sqrt(r) * 18 },
+      rippleEffect: { brushType: 'stroke', scale: 1.8, period: 4 },
       showEffectOn: 'emphasis',
-      itemStyle: { color: '#38bdf8', shadowBlur: 12, shadowColor: '#38bdf8' },
+      itemStyle: { color: (params) => { const c = Number((params.data && params.data.count) || 0); const r = maxCount.value > 0 ? c / maxCount.value : 0; if (r >= 0.6) return '#f472b6'; if (r >= 0.3) return '#a78bfa'; if (r >= 0.1) return '#22d3ee'; return '#38bdf8' }, shadowBlur: 8, shadowColor: 'rgba(56,189,248,.5)', borderColor: 'rgba(255,255,255,.55)', borderWidth: 1 },
       label: {
         show: true,
         position: 'right',
-        formatter: (params) => `${params.data.name} ${params.data.count}`,
+        distance: 6,
+        formatter: (params) => { const rank = topRanks.value.indexOf(params.data.name); if (rank >= 0 && rank < 8) return params.data.name + ' ' + params.data.count; return params.data.name },
         color: '#e2e8f0',
         fontSize: 10,
-        textBorderColor: '#071a33',
+        fontWeight: 600,
+        textBorderColor: 'rgba(7,26,51,.9)',
         textBorderWidth: 3,
+        backgroundColor: 'rgba(15,23,42,.55)',
+        padding: [2, 5],
+        borderRadius: 4,
       },
-      labelLayout: { hideOverlap: true },
+      labelLayout: () => ({ hideOverlap: true, moveOverlap: 'shiftY' }),
       emphasis: { scale: 1.3, itemStyle: { color: '#f59e0b' } },
     },
   ],
@@ -131,7 +137,7 @@ async function load() {
   error.value = ''
   try {
     const response = await api.byCountry()
-    countries.value = response?.data || []
+    countries.value = Array.isArray(response) ? response : (response?.data || [])
     if (!mapItems.value.length) throw new Error('国家字段无法映射到世界地图')
   } catch (exception) {
     error.value = exception?.message || String(exception)

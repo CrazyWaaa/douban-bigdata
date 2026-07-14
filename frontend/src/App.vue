@@ -141,28 +141,57 @@ import { useTheme } from './composables/useTheme';
 import { useCommandPalette } from './composables/useCommandPalette';
 import { useNProgress } from './composables/useNProgress';
 import CommandPalette from './components/CommandPalette.vue';
+import httpClient from './api/httpClient';
 
 const router = useRouter();
 const { theme, toggle } = useTheme();
 const { open: openPalette } = useCommandPalette();
-const { start, done } = useNProgress();
+const { start, done, inc } = useNProgress();
 
 const isMac = computed(() => {
   if (typeof navigator === 'undefined') return false;
   return /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '');
 });
 
-let removeAfterEach = null;
+// 在 axios 客户端上挂一个轻量计数器：多个并发请求叠加 inc，
+// 直到全部完成才 done()，这样 Dashboard / Detail 的多次并发请求
+// 不会让进度条反复闪。
+let inflight = 0;
+let reqId = null;
+let respId = null;
 let removeBeforeEach = null;
+let removeAfterEach = null;
 onMounted(() => {
+  reqId = httpClient.interceptors.request.use((cfg) => {
+    if (inflight === 0) start();
+    inflight++;
+    cfg.__npInflight = true;
+    return cfg;
+  });
+  // 单一响应拦截器同时处理成功与失败，避免双调用
+  respId = httpClient.interceptors.response.use(
+    (r) => { finishOne(); return r; },
+    (err) => { finishOne(); return Promise.reject(err); }
+  );
   removeBeforeEach = router.beforeEach((to, from) => {
     if (to.fullPath !== from.fullPath) start();
   });
-  removeAfterEach = router.afterEach(() => done());
+  removeAfterEach = router.afterEach(() => {
+    if (inflight === 0) done();
+  });
 });
+
+function finishOne() {
+  if (inflight > 0) inflight--;
+  inc(0.3);
+  if (inflight === 0) done();
+}
+
 onBeforeUnmount(() => {
   if (removeAfterEach) removeAfterEach();
   if (removeBeforeEach) removeBeforeEach();
+  if (reqId !== null) httpClient.interceptors.request.eject(reqId);
+  if (respId !== null) httpClient.interceptors.response.eject(respId);
 });
 </script>
 

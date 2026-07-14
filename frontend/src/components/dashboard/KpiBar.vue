@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div ref="el" class="kpi-bar" :class="{ 'is-draggable': draggable }" @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerUp" @pointerleave="onPointerUp">
     <div class="kpi-bar__inner" :style="{ transform: `translateX(${translateX}px)` }">
       <slot />

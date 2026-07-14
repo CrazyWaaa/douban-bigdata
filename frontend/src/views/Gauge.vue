@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <PageScaffold
     title="品质仪表盘"
     subtitle="多指针仪表 + 类型雷达,一屏看完整体品质"
@@ -15,10 +15,10 @@
     </UiChartCard>
 
     <div class="gauge-grid">
-      <UiChartCard title="评价数水位(单部均评)" class="fade-up" style="animation-delay: 60ms">
+      <UiChartCard title="评价数水位(单部均评)" class="fade-up-stagger" style="--i: 1">
         <EChart :option="liquidOption" height="280px" />
       </UiChartCard>
-      <UiChartCard title="类型均分雷达" class="fade-up" style="animation-delay: 120ms">
+      <UiChartCard title="类型均分雷达" class="fade-up-stagger" style="--i: 2">
         <EChart :option="radarOption" height="280px" />
       </UiChartCard>
     </div>

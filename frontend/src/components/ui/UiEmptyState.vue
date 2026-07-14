@@ -12,7 +12,7 @@ defineProps({
   icon:  { type: String, default: '' },
   title: { type: String, default: '暂无数据' },
   desc:  { type: String, default: '' },
-});
+})
 </script>
 
 <style scoped>

@@ -1,4 +1,4 @@
-﻿import { ref, watch, onUnmounted } from "vue";
+import { ref, watch, onUnmounted } from "vue";
 
 // 1.5s easeOutCubic 数字滚动;尊重 prefers-reduced-motion
 export function useCountUp(source, { duration = 1500, decimals = 0, immediate = true } = {}) {

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <PageScaffold
     title="影片能力雷达"
     subtitle="TOP 6 高分影片多维度对比(剧情 / 演技 / 视效 / 音乐 / 节奏)"
@@ -18,7 +18,7 @@
       />
     </UiChartCard>
 
-    <UiChartCard title="影片能力值详情" sub="点击行可跳转到详情页" class="fade-up" style="animation-delay: 80ms">
+    <UiChartCard title="影片能力值详情" sub="点击行可跳转到详情页" class="fade-up-stagger" style="--i: 1">
       <ul class="ability-list">
         <li
           v-for="(m, i) in movies"
@@ -29,7 +29,7 @@
         >
           <span class="ability-list__rank">{{ i + 1 }}</span>
           <div class="ability-list__info">
-            <div class="ability-list__name">{{ m.name }}</div>
+            <div class="ability-list__name">{{ m.name || '-' }}</div>
             <div class="ability-list__bar">
               <div
                 v-for="(v, idx) in m.values"
@@ -42,7 +42,7 @@
           </div>
           <div class="ability-list__nums">
             <span v-for="(v, idx) in m.values" :key="idx" class="ability-list__num">
-              <span class="ability-list__lbl">{{ INDICATORS[idx].name[0] }}</span>
+              <span class="ability-list__lbl">{{ INDICATORS[idx].name[0] || '-' }}</span>
               <span class="ability-list__val">{{ v.toFixed(1) }}</span>
             </span>
           </div>

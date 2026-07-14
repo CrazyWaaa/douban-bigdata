@@ -1,4 +1,4 @@
-﻿import { useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 
 /**
  * 新页面统一钻取入口:

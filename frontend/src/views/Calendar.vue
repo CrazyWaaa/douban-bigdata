@@ -1,66 +1,147 @@
 <template>
-  <PageScaffold title="上映月份热力" subtitle="按年份观察影片上映月份分布" :loading="loading" :error="error" @retry="load">
-    <template #actions><select v-model.number="selectedYear" class="year-select"><option v-for="year in years" :key="year" :value="year">{{ year }}</option></select></template>
-    <UiChartCard :title="`${selectedYear} 年上映热力`" :sub="`${knownTotal} 部有明确月份数据`" class="fade-up">
-      <EChart :option="heatmapOption" height="300px" />
+  <div class="cal">
+    <header class="page-head fade-up">
+      <div>
+        <h1 class="page-title">发行日历 · 热力</h1>
+        <p class="page-sub">按片单 release_date 解析到月,越深色越多片。可切换年份。</p>
+      </div>
+      <div class="cal__controls">
+        <UiButton size="sm" variant="ghost" @click="prev">← 上年</UiButton>
+        <span class="cal__year">{{ year || '-' }}</span>
+        <UiButton size="sm" variant="ghost" @click="next">下年 →</UiButton>
+      </div>
+    </header>
+
+    <UiChartCard :loading="loading" :error="error" title="年度发行热力" sub="每年一张热力图" class="fade-up" @retry="load">
+      <EChart :option="option" height="320px" v-if="hasData" :key="year" />
+      <UiEmptyState v-else title="这一年没有数据" :desc="`${year} 年没有可解析的 release_date`" />
     </UiChartCard>
-    <UiChartCard title="年度影片数量" sub="最近 20 个有数据年份" class="fade-up">
-      <EChart :option="yearOption" height="340px" @itemClick="openYear" />
-    </UiChartCard>
-  </PageScaffold>
+
+    <div v-if="monthlyStats.length" class="cal__months fade-up-stagger" style="--i: 1">
+      <div class="cal__month-grid">
+        <div
+          v-for="(m, i) in monthlyStats"
+          :key="m.month"
+          class="cal__month"
+          :style="{ animationDelay: (i * 25) + 'ms' }"
+        >
+          <div class="cal__month-num">{{ m.month || '-' }}</div>
+          <div class="cal__month-val">{{ m.count || '-' }}</div>
+          <div class="cal__month-lbl muted">部</div>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import PageScaffold from '../components/PageScaffold.vue'
+/**
+ * Calendar.vue
+ * - 数据:/api/calendar/monthly?year=YYYY
+ * - 控件:上下年按钮
+ * - 月度小卡片汇总
+ */
+import { ref, computed, watch, onMounted } from 'vue'
 import EChart from '../components/EChart.vue'
 import UiChartCard from '../components/ui/UiChartCard.vue'
+import UiButton from '../components/ui/UiButton.vue'
+import UiEmptyState from '../components/ui/UiEmptyState.vue'
 import { api } from '../api'
-import { releaseMonth } from '../utils/movieFields'
+import { buildCalendarOption } from '../echarts/options'
 
-const router = useRouter()
 const loading = ref(false)
 const error = ref('')
-const selectedYear = ref(new Date().getFullYear())
-const yearDistribution = ref([])
-const movies = ref([])
-const years = computed(() => yearDistribution.value.map((item) => Number(item.name)).filter((year) => year > 1900).sort((a, b) => b - a))
-const monthly = computed(() => {
-  const counts = Array(12).fill(0)
-  for (const movie of movies.value) {
-    if (Number(movie.year) !== selectedYear.value) continue
-    const month = releaseMonth(movie.release_date)
-    if (month) counts[month - 1] += 1
+const year = ref(new Date().getFullYear())
+const points = ref([])
+const availableYears = ref([])
+
+const hasData = computed(() => points.value.length > 0)
+
+const option = computed(() => buildCalendarOption(points.value, year.value))
+
+const monthlyStats = computed(() => {
+  const buckets = new Array(12).fill(0)
+  for (const p of points.value) {
+    const mo = Number(String(p.date).slice(5, 7))
+    if (mo >= 1 && mo <= 12) buckets[mo - 1] += Number(p.value || 0)
   }
-  return counts
+  return buckets.map((c, i) => ({ month: i + 1, count: c })).filter((x) => x.count > 0)
 })
-const knownTotal = computed(() => monthly.value.reduce((sum, count) => sum + count, 0))
-const heatmapOption = computed(() => ({
-  grid: { left: 48, right: 24, top: 34, bottom: 52 },
-  tooltip: { formatter: (p) => `${selectedYear.value} 年 ${p.value[0] + 1} 月<br/>上映影片：<b>${p.value[2]}</b>` },
-  xAxis: { type: 'category', data: Array.from({ length: 12 }, (_, index) => `${index + 1}月`), splitArea: { show: true }, axisTick: { show: false } },
-  yAxis: { type: 'category', data: ['上映数量'], splitArea: { show: true }, axisTick: { show: false } },
-  visualMap: { min: 0, max: Math.max(1, ...monthly.value), calculable: false, orient: 'horizontal', left: 'center', bottom: 4, inRange: { color: ['#172554', '#0ea5e9', '#8b5cf6', '#ec4899'] }, text: ['多', '少'], textStyle: { color: '#94a3b8' } },
-  series: [{ type: 'heatmap', data: monthly.value.map((value, month) => [month, 0, value]), label: { show: true, color: '#fff', fontWeight: 700 }, itemStyle: { borderColor: '#0f172a', borderWidth: 3 } }],
-}))
-const yearOption = computed(() => {
-  const data = [...yearDistribution.value].sort((a, b) => Number(a.name) - Number(b.name)).slice(-20)
-  return { grid: { left: 48, right: 24, top: 24, bottom: 50 }, tooltip: { trigger: 'axis' }, xAxis: { type: 'category', data: data.map((item) => item.name), axisLabel: { rotate: 38 } }, yAxis: { type: 'value', name: '影片数' }, series: [{ type: 'bar', data: data.map((item) => ({ value: item.count, name: item.name })), barMaxWidth: 26, itemStyle: { color: '#38bdf8', borderRadius: [5, 5, 0, 0] } }] }
-})
-function openYear(params) { if (params?.name) router.push({ path: '/year', query: { v: params.name } }) }
+
 async function load() {
-  loading.value = true; error.value = ''
+  loading.value = true
+  error.value = ''
   try {
-    const [yearsResponse, moviesResponse] = await Promise.all([api.byYear(), api.paged({ page: 1, size: 100, sort: 'year', order: 'desc' })])
-    yearDistribution.value = yearsResponse?.data || []
-    movies.value = moviesResponse?.items || []
-    if (years.value.length) selectedYear.value = years.value.find((year) => movies.value.some((movie) => Number(movie.year) === year && releaseMonth(movie.release_date))) || years.value[0]
-  } catch (exception) { error.value = exception?.message || String(exception) } finally { loading.value = false }
+    const res = await api.calendarMonthly(year.value)
+    if (res && typeof res === 'object') {
+      if (Array.isArray(res.points)) {
+        points.value = res.points.filter((p) => Number(String(p.date).slice(0, 4)) === year.value)
+      } else {
+        points.value = []
+      }
+      if (Array.isArray(res.years) && res.years.length) {
+        availableYears.value = res.years
+        if (!res.years.includes(year.value)) {
+          year.value = res.years[res.years.length - 1]
+        }
+      }
+    } else {
+      points.value = []
+    }
+  } catch (e) {
+    error.value = e?.response?.data?.message || e?.message || String(e)
+    points.value = []
+  } finally {
+    loading.value = false
+  }
 }
+
+function prev() { year.value -= 1; load() }
+function next() { year.value += 1; load() }
+
+watch(year, load)
+
 onMounted(load)
 </script>
 
 <style scoped>
-.year-select { min-width: 96px; padding: 6px 10px; color: var(--c-text); background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--r-sm); }
+.cal { display: flex; flex-direction: column; gap: 14px; }
+.page-head { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 12px; }
+.page-title { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+.page-sub { margin: 4px 0 0; color: var(--c-muted); font-size: 13px; }
+
+.cal__controls {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 6px 10px; border: 1px solid var(--c-border); border-radius: var(--r-sm);
+  background: var(--c-surface);
+}
+.cal__year {
+  font-weight: 700; font-variant-numeric: tabular-nums;
+  min-width: 64px; text-align: center;
+}
+
+.cal__months { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--r); padding: 14px; }
+.cal__month-grid {
+  display: grid; grid-template-columns: repeat(12, 1fr); gap: 8px;
+}
+@media (max-width: 900px) {
+  .cal__month-grid { grid-template-columns: repeat(6, 1fr); }
+}
+@media (max-width: 600px) {
+  .cal__month-grid { grid-template-columns: repeat(3, 1fr); }
+}
+.cal__month {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 4px;
+  background: var(--c-surface-2);
+  border-radius: var(--r-sm);
+  opacity: 0; transform: translateY(4px);
+  animation: fadeUp .35s var(--ease-out) both;
+}
+.cal__month-num { color: var(--c-muted); font-size: 11px; }
+.cal__month-val {
+  color: var(--c-primary); font-weight: 700; font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+.cal__month-lbl { font-size: 10px; }
 </style>

@@ -2,8 +2,19 @@
   <div :class="['ui-metric', tone && `ui-metric--${tone}`]">
     <div class="ui-metric__head">
       <span class="ui-metric__label">{{ label }}</span>
-      <span v-if="trend != null" :class="['ui-metric__trend', trend > 0 ? 'is-up' : trend < 0 ? 'is-down' : 'is-flat']">
-        <span aria-hidden="true">{{ trend > 0 ? '▲' : trend < 0 ? '▼' : '·' }}</span>
+      <span
+        v-if="trend != null"
+        :class="['ui-metric__trend', trend > 0 ? 'is-up' : trend < 0 ? 'is-down' : 'is-flat']"
+      >
+        <svg v-if="trend > 0" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+          <path d="M6 2 L10 8 L2 8 Z" fill="currentColor"/>
+        </svg>
+        <svg v-else-if="trend < 0" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+          <path d="M6 10 L2 4 L10 4 Z" fill="currentColor"/>
+        </svg>
+        <svg v-else viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+          <rect x="2" y="5.5" width="8" height="1" fill="currentColor"/>
+        </svg>
         {{ Math.abs(trend) }}%
       </span>
     </div>
@@ -17,28 +28,28 @@
 </template>
 
 <script setup>
-import { computed, toRef } from 'vue';
-import { useCountUp } from '../../composables/useCountUp';
+import { computed, toRef } from 'vue'
+import { useCountUp } from '../../composables/useCountUp'
 
 const props = defineProps({
-  label: { type: String, required: true },
-  value: { type: [Number, String], default: 0 },
-  sub:   { type: String, default: '' },
-  unit:  { type: String, default: '' },
-  trend: { type: Number, default: null },
-  tone:  { type: String, default: 'primary' },
-  decimals: { type: Number, default: 0 },
-});
+  label:    { type: String,    required: true },
+  value:    { type: [Number, String], default: 0 },
+  sub:      { type: String,    default: '' },
+  unit:     { type: String,    default: '' },
+  trend:    { type: Number,    default: null },
+  tone:     { type: String,    default: 'primary' },
+  decimals: { type: Number,    default: 0 },
+})
 
-const src = toRef(props, 'value');
-const animated = useCountUp(src, { decimals: props.decimals });
+const src = toRef(props, 'value')
+const animated = useCountUp(src, { decimals: props.decimals })
 const display = computed(() => {
-  const v = animated.value;
-  if (v == null || isNaN(v)) return '-';
-  if (props.decimals > 0) return Number(v).toFixed(props.decimals);
-  if (typeof v === 'number' && v >= 10000) return (v / 10000).toFixed(1) + 'w';
-  return Number(v).toLocaleString();
-});
+  const v = animated.value
+  if (v == null || isNaN(v)) return '-'
+  if (props.decimals > 0) return Number(v).toFixed(props.decimals)
+  if (typeof v === 'number' && v >= 10000) return (v / 10000).toFixed(1) + 'w'
+  return Number(v).toLocaleString()
+})
 </script>
 
 <style scoped>
@@ -59,7 +70,7 @@ const display = computed(() => {
 .ui-metric__trend.is-flat { color: var(--c-muted); }
 .ui-metric__value { display: flex; align-items: baseline; gap: 4px; margin-top: 6px; }
 .ui-metric__num {
-  font-size: var(--fs-3xl); font-weight: 700; line-height: 1.1;
+  font-size: 26px; font-weight: 700; line-height: 1.1;
   color: var(--c-primary);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.5px;

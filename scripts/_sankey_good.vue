@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <PageScaffold
     title="影片流量桑基"
     subtitle="类型 → 地区 → 年代 三列能量流,流量=影片数"
@@ -29,13 +29,13 @@
         >
           <span class="link-list__rank">{{ i + 1 }}</span>
           <span class="link-list__path">
-            <span class="link-list__node link-list__node--g">{{ l.source || '-' }}</span>
+            <span class="link-list__node link-list__node--g">{{ l.source }}</span>
             <span class="link-list__arrow">→</span>
-            <span class="link-list__node link-list__node--c">{{ l.mid || '-' }}</span>
+            <span class="link-list__node link-list__node--c">{{ l.mid }}</span>
             <span class="link-list__arrow">→</span>
-            <span class="link-list__node link-list__node--y">{{ l.target || '-' }}</span>
+            <span class="link-list__node link-list__node--y">{{ l.target }}</span>
           </span>
-          <span class="link-list__val">{{ l.value || '-' }} 部</span>
+          <span class="link-list__val">{{ l.value }} 部</span>
         </li>
       </ul>
     </UiChartCard>
