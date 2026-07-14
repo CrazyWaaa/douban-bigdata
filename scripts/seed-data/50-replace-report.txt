@@ -1,0 +1,46 @@
+======================================================================
+movie 表替换 — 报告
+======================================================================
+你的 movie 行数:    250
+朋友 movies 行数:   250
+交集:               250
+仅朋友:             0
+仅你的:             0
+你 douban_id NULL:  0 (用 title 从朋友回填)
+
+将 INSERT:          250 行 (朋友全部)
+保护字段提取:
+    director                   250 行
+    quote                      111 行
+    better_than                  0 行
+    also_know_as                 0 行
+    imdb_id                      0 行
+    official_sites               0 行
+    comment_short_count          0 行
+    comment_review_count         0 行
+    discussion_count             0 行
+
+======================================================================
+Navicat 执行顺序 (按顺序执行,不要跳步)
+======================================================================
+  1. 备份: 在 Navicat 里对 movie 表右键 -> 转储 SQL -> 仅结构+数据
+  2. 执行 01-create-protected-table.sql
+  3. 执行 02-extract-protected.sql (保护字段)
+  4. 执行 03-replace-movie.sql (TRUNCATE + INSERT 朋友数据)
+  5. 执行 04-restore-protected.sql (回填保护字段)
+  6. 跑 Spark ETL 重新生成 agg_*/dim_* 聚合表:
+       cd spark && ./run_etl.sh  (或 run_local_check.sh)
+  7. 验证: SELECT COUNT(*), COUNT(release_date), COUNT(runtime_minutes),
+            COUNT(rating_stars), COUNT(detail_url) FROM movie;
+
+======================================================================
+执行后预期
+======================================================================
+  movie 总行数:    250
+  detail_url 非空: ~99% (250 - 你的 douban_id NULL 行)
+  release_date:    ~99%
+  runtime_minutes: ~99% (取决于朋友 runtime 格式可解析)
+  rating_stars:    ~99%
+  related_pics:    ~99%
+  director:        由 04 回填你的双语版 (约 250 行)
+  quote/better_than/...: 由 04 回填你原有的非 NULL 值

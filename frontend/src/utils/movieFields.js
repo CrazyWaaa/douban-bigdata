@@ -1,8 +1,9 @@
 const PERSON_SUFFIX = /\s+[A-Z][A-Za-z.'-]*(?:\s+[A-Z][A-Za-z.'-]*)*$/
 
 export function splitMultiValue(value) {
-  if (!value) return []
+  if (value == null || value === '') return []
   const source = String(value).trim()
+  if (!source) return []
   const parts = source.includes('/')
     ? source.split(/\s*\/\s*/)
     : source.split(/\s+/)

@@ -1,0 +1,30 @@
+======================================================================
+合并报告
+======================================================================
+你库行数:    250
+朋友行数:    246
+交集:        246
+仅朋友:      0 (会 INSERT)
+仅你的:      4 (跳过)
+
+生成的 UPDATE 数: 246
+生成的 INSERT 数: 0
+
+各字段补 NULL 的行数 (UPDATE):
+  detail_url                   23 行
+  languages                    23 行
+  release_date                 23 行
+  runtime                      23 行
+  runtime_minutes             246 行
+  quote                         0 行
+  rating_stars                 23 行
+  related_pics                 23 行
+
+你已有数据但被保护的行: 0 (未做任何修改)
+
+你 NULL 但朋友也没有的行 (需手动补):
+  共 4 行
+    1291841  教父  NULL=[detail_url, languages, release_date, runtime, runtime_minutes, quote, rating_stars, related_pics]
+    1293172  末代皇帝  NULL=[detail_url, languages, release_date, runtime, runtime_minutes, quote, rating_stars, related_pics]
+    3319755  怦然心动  NULL=[runtime_minutes]
+    26387939  摔跤吧！爸爸  NULL=[runtime_minutes]

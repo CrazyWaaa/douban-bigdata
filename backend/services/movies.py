@@ -7,6 +7,7 @@ from sqlalchemy import func, select, case, or_, text
 
 from db import get_session
 from models import AggCountry, AggGenre, AggYear, Movie
+from ._safe import split_related_pics, safe_json
 
 # ============ 通用工具 ============
 # CSV/分隔字段拆行:用于把 "A / B / C" 拆成多行,在 SQL 层做聚合
@@ -126,6 +127,123 @@ def top_rated(limit: int = 50) -> list[dict]:
 
 
 def _serialize_movie(m: Movie, rank: int | None = None) -> dict:
+    """单部电影序列化:任何字段异常都不会让整行失败。"""
+    def safe(fn, default=None):
+        try:
+            return fn()
+        except Exception:
+            return default
+    data = {
+        "rank": rank,
+        "douban_id": m.douban_id,
+        "title": safe(lambda: m.title) or "",
+        "director": safe(lambda: m.director),
+        "actors": safe(lambda: m.actors),
+        "genre": safe(lambda: m.genre),
+        "country": safe(lambda: m.country),
+        "year": safe(lambda: int(m.year) if m.year is not None else None),
+        "rating": safe(lambda: float(m.rating) if m.rating is not None else None),
+        "rating_count": safe(lambda: int(m.rating_count) if m.rating_count is not None else None),
+        "summary": safe(lambda: m.summary),
+        "poster_url": safe(lambda: m.poster_url),
+    }
+    # 扩展字段:每个字段单独 try
+    extras = {
+        "detail_url": m.detail_url,
+        "languages": m.languages,
+        "release_date": m.release_date,
+        "runtime": m.runtime,
+        "runtime_minutes": m.runtime_minutes,
+        "quote": m.quote,
+        "better_than": m.better_than,
+        "also_know_as": m.also_know_as,
+        "imdb_id": m.imdb_id,
+        "official_sites": m.official_sites,
+        "comment_short_count": m.comment_short_count,
+        "comment_review_count": m.comment_review_count,
+        "discussion_count": m.discussion_count,
+        "rating_stars": m.rating_stars,
+        "related_pics": m.related_pics,
+    }
+    for k, v in extras.items():
+        if v is None:
+            continue
+        try:
+            if k == "rating_stars":
+                data[k] = safe_json(v)
+            elif k == "related_pics":
+                data[k] = split_related_pics(v)
+            elif k == "runtime_minutes":
+                data[k] = int(v)
+            elif k in ("comment_short_count", "comment_review_count", "discussion_count"):
+                data[k] = int(v)
+            else:
+                data[k] = str(v)
+        except Exception:
+            continue
+    return data
+
+    return [
+        {"name": r.genre, "count": int(r.movie_count), "avg_rating": _to_float(r.avg_rating)}
+        for r in rows if r.genre
+    ]
+
+
+    return [
+        {"name": r.country, "count": int(r.movie_count), "avg_rating": _to_float(r.avg_rating)}
+        for r in rows if r.country
+    ]
+
+
+    return [
+        {"year": int(r.year), "count": int(r.movie_count), "avg_rating": _to_float(r.avg_rating)}
+        for r in rows
+    ]
+
+
+def count_by_genre() -> list[dict]:
+    s = get_session()
+    try:
+        rows = s.execute(select(AggGenre).order_by(AggGenre.movie_count.desc())).scalars().all()
+        return _serialize_agg_genre(rows)
+    finally:
+        s.close()
+
+
+def count_by_country() -> list[dict]:
+    s = get_session()
+    try:
+        rows = s.execute(select(AggCountry).order_by(AggCountry.movie_count.desc())).scalars().all()
+        return _serialize_agg_country(rows)
+    finally:
+        s.close()
+
+
+def count_by_year() -> list[dict]:
+    s = get_session()
+    try:
+        rows = s.execute(select(AggYear).order_by(AggYear.year.asc())).scalars().all()
+        return _serialize_agg_year(rows)
+    finally:
+        s.close()
+
+
+def top_rated(limit: int = 50) -> list[dict]:
+    s = get_session()
+    try:
+        rating_null = Movie.rating.is_(None)
+        count_null = Movie.rating_count.is_(None)
+        rows = s.execute(
+            select(Movie).order_by(
+                rating_null.asc(), Movie.rating.desc(),
+                count_null.asc(), Movie.rating_count.desc(),
+            ).limit(limit)
+        ).scalars().all()
+        return [_serialize_movie(m, rank=i + 1) for i, m in enumerate(rows)]
+    finally:
+        s.close()
+
+
     data = {
         "rank": rank,
         "douban_id": m.douban_id,

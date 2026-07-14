@@ -121,7 +121,7 @@ onBeforeUnmount(() => {
   will-change: transform;
   padding: 4px 2px 8px;
 }
-.kpi-bar__inner > * { flex-shrink: 0; min-width: 168px; }
+.kpi-bar__inner > * { flex: 1; min-width: 140px; max-width: 220px; }
 .kpi-bar__edge {
   position: absolute; top: 0; bottom: 0; width: 36px;
   pointer-events: none;

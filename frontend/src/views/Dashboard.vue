@@ -81,7 +81,7 @@
         </UiCard>
       </section>
 
-      <section class="dashboard__col dashboard__col--mid">
+      <section class="dashboard__col dashboard__col--main">
         <UiCard title="类型分布 · 数量与均分">
           <template #actions>
             <span class="muted">片单引用 · 平均分</span>
@@ -95,48 +95,48 @@
             <span class="muted">右轴：平均分</span>
           </div>
         </UiCard>
+
+        <div class="dashboard__bottom-row">
+          <UiCard title="评分分布">
+            <template #actions><span class="muted">整体打分构成</span></template>
+            <UiChartCard v-if="loading && !ratingOption" title="评分分布" sub="加载中" :loading="true" />
+            <EChart v-else :option="ratingOption" height="260px" />
+          </UiCard>
+
+          <UiCard title="国家 Top10">
+            <template #actions><span class="muted">出品国家</span></template>
+            <UiChartCard v-if="loading && !countryOption" title="国家 Top10" sub="加载中" :loading="true" />
+            <EChart v-else :option="countryOption" height="260px" @item-click="onCountryClick" />
+          </UiCard>
+        </div>
       </section>
 
-      <section class="dashboard__col dashboard__col--right">
+      <section class="dashboard__col dashboard__col--side">
         <UiCard title="年代趋势 · 近 20 年">
           <template #actions><span class="muted">片数 · 均分</span></template>
           <UiChartCard v-if="loading && !yearOption" title="年代趋势" sub="加载中" :loading="true" />
-          <EChart v-else :option="yearOption" height="320px" @item-click="onYearClick" />
+          <EChart v-else :option="yearOption" height="260px" @item-click="onYearClick" />
         </UiCard>
-      </section>
-    </div>
 
-    <div class="dashboard__row--3">
-      <UiCard title="评分分布">
-        <template #actions><span class="muted">整体打分构成</span></template>
-        <UiChartCard v-if="loading && !ratingOption" title="评分分布" sub="加载中" :loading="true" />
-        <EChart v-else :option="ratingOption" height="280px" />
-      </UiCard>
-
-      <UiCard title="国家 Top10">
-        <template #actions><span class="muted">出品国家</span></template>
-        <UiChartCard v-if="loading && !countryOption" title="国家 Top10" sub="加载中" :loading="true" />
-        <EChart v-else :option="countryOption" height="280px" @item-click="onCountryClick" />
-      </UiCard>
-
-      <UiCard title="最受关注" glow>
-        <template #actions><span class="muted">评价人数之最</span></template>
-        <div v-if="topFocus" class="focus">
-          <PosterImg class="focus__poster" :src="topFocus.poster" :alt="topFocus.title" />
-          <div class="focus__info">
-            <div class="focus__title">{{ topFocus.title || '-' }}</div>
-            <div class="focus__meta">
-              <span>导演：{{ topFocus.director || '—' }}</span>
-              <span v-if="topFocus.year">· {{ topFocus.year || '-' }}</span>
-            </div>
-            <div class="focus__metric">
-              <div class="focus__metric-num">{{ formatRatingCount(topFocus.ratingCount) }}</div>
-              <div class="focus__metric-lbl muted">评价人数</div>
+        <UiCard title="最受关注" glow>
+          <template #actions><span class="muted">评价人数之最</span></template>
+          <div v-if="topFocus" class="focus">
+            <PosterImg class="focus__poster" :src="topFocus.poster" :alt="topFocus.title" />
+            <div class="focus__info">
+              <div class="focus__title">{{ topFocus.title || '-' }}</div>
+              <div class="focus__meta">
+                <span>导演：{{ topFocus.director || '—' }}</span>
+                <span v-if="topFocus.year">· {{ topFocus.year || '-' }}</span>
+              </div>
+              <div class="focus__metric">
+                <div class="focus__metric-num">{{ formatRatingCount(topFocus.ratingCount) }}</div>
+                <div class="focus__metric-lbl muted">评价人数</div>
+              </div>
             </div>
           </div>
-        </div>
-        <UiEmptyState v-else title="暂无最受关注影片" />
-      </UiCard>
+          <UiEmptyState v-else title="暂无最受关注影片" />
+        </UiCard>
+      </section>
     </div>
   </div>
 </template>
@@ -305,11 +305,16 @@ onActivated(() => { if (!store.lastLoadedAt) store.loadAll() })
 </script>
 
 <style scoped>
-.dashboard { display: flex; flex-direction: column; gap: 10px; }
+.dashboard { 
+  display: flex; flex-direction: column; gap: 16px; 
+  max-width: 1920px; 
+  margin: 0 auto; 
+  padding: 0 24px;
+}
 .dashboard__head { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 12px; }
-.dashboard__title { margin: 0; font-size: 26px; letter-spacing: -0.5px; display: flex; flex-direction: column; }
+.dashboard__title { margin: 0; font-size: 28px; letter-spacing: -0.5px; display: flex; flex-direction: column; }
 .dashboard__title-zh { font-weight: 700; }
-.dashboard__title-en { font-size: 11px; letter-spacing: 4px; color: var(--c-muted); margin-top: 4px; }
+.dashboard__title-en { font-size: 12px; letter-spacing: 4px; color: var(--c-muted); margin-top: 4px; }
 .dashboard__sub { margin: 6px 0 0; color: var(--c-muted); font-size: var(--fs-sm); }
 .dashboard__head-actions { display: flex; gap: 8px; align-items: center; }
 .dashboard__error {
@@ -324,17 +329,47 @@ onActivated(() => { if (!store.lastLoadedAt) store.loadAll() })
 
 .dashboard__grid {
   display: grid;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr) minmax(0, 5fr);
-  gap: 10px;
+  grid-template-columns: 
+    minmax(0, 360px) 
+    minmax(0, 1fr) 
+    minmax(0, 340px);
+  gap: 16px;
+  align-items: start;
 }
-.dashboard__col { min-width: 0; }
-.dashboard__row--3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-@media (max-width: 1280px) {
-  .dashboard__grid { grid-template-columns: 1fr 1fr; }
+.dashboard__col { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.dashboard__col--left { flex-shrink: 0; }
+.dashboard__col--main { flex: 1; }
+.dashboard__col--side { flex-shrink: 0; }
+
+.dashboard__bottom-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+@media (max-width: 1400px) {
+  .dashboard__grid {
+    grid-template-columns: 
+      minmax(0, 320px) 
+      minmax(0, 1fr) 
+      minmax(0, 300px);
+    gap: 12px;
+  }
+  .dashboard__bottom-row { gap: 12px; }
+}
+
+@media (max-width: 1200px) {
+  .dashboard__grid {
+    grid-template-columns: 1fr 1fr;
+  }
   .dashboard__col--left { grid-column: 1 / -1; }
+  .dashboard__bottom-row { grid-template-columns: 1fr; }
 }
-@media (max-width: 900px) {
-  .dashboard__grid, .dashboard__row--3 { grid-template-columns: 1fr; }
+
+@media (max-width: 768px) {
+  .dashboard__grid { grid-template-columns: 1fr; }
+  .dashboard { padding: 0 12px; }
 }
 
 .top-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }

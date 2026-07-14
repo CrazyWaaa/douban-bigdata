@@ -19,6 +19,7 @@ from routes.dashboard import bp as dashboard_bp
 from routes.health import bp as health_bp
 from routes.movies import bp as movies_bp
 from routes.img_proxy import bp as img_proxy_bp
+from routes.viz import bp as viz_bp
 
 
 def create_app() -> Flask:
@@ -38,6 +39,7 @@ def create_app() -> Flask:
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(movies_bp)
     app.register_blueprint(img_proxy_bp)
+    app.register_blueprint(viz_bp)
 
     @app.errorhandler(404)
     def not_found(e):
