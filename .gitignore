@@ -61,3 +61,6 @@ data/*
 
 # Local test inputs
 test_ids.txt
+
+# Local docx build scaffolding (not shipped)
+docs/_build/
